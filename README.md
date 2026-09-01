@@ -72,6 +72,29 @@ npx tsx src/scripts/fetch-transactions.ts              # actually inserts
 
 Safe to re-run — inserts are deduped on Gmail's message ID (`ON CONFLICT DO NOTHING` behavior via a unique constraint).
 
+## Running it automatically (macOS launchd)
+
+`scripts/run-fetch.sh` + `scripts/com.budgettracker.fetch.plist` run the ingestion job every 30 minutes in the background, no cron/hosting needed.
+
+Install:
+```
+cp "scripts/com.budgettracker.fetch.plist" ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.budgettracker.fetch.plist
+```
+
+Check it's running / see recent output:
+```
+launchctl list | grep budgettracker
+tail -f "scripts/fetch.log"
+```
+
+Stop it:
+```
+launchctl unload ~/Library/LaunchAgents/com.budgettracker.fetch.plist
+```
+
+Logs go to `scripts/fetch.log` (job output) and `scripts/launchd.*.log` (launchd-level stdout/stderr) — both gitignored.
+
 ## Current sender coverage
 
 - **Axis Bank** (`alerts@axis.bank.in`) — two templates handled:

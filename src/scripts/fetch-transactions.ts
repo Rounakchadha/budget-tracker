@@ -5,6 +5,7 @@ import { isKnownNonTransactional } from "../parsers/axis.js";
 import { extractWithGroqFallback } from "../ai/groq-fallback.js";
 import { extractWithAnthropicFallback } from "../ai/fallback.js";
 import { supabase } from "../db/client.js";
+import { withRetry } from "../lib/retry.js";
 import type { ParsedTransaction, RawEmail } from "../parsers/types.js";
 
 const SEARCH_QUERY = "from:alerts@axis.bank.in";
@@ -16,18 +17,20 @@ function snippet(bodyText: string, maxLen = 500): string {
 }
 
 async function insertTransaction(email: RawEmail, parsed: ParsedTransaction) {
-  const { error } = await supabase.from("transactions").insert({
-    email_message_id: email.messageId,
-    amount: parsed.amount,
-    currency: parsed.currency,
-    direction: parsed.direction,
-    merchant_raw: parsed.merchantRaw,
-    source: parsed.source,
-    transaction_date: parsed.transactionDate.toISOString(),
-    parsed_confidence: parsed.confidence,
-    needs_review: parsed.confidence === "low",
-    raw_email_snippet: snippet(email.bodyText),
-  });
+  const { error } = await withRetry(() =>
+    supabase.from("transactions").insert({
+      email_message_id: email.messageId,
+      amount: parsed.amount,
+      currency: parsed.currency,
+      direction: parsed.direction,
+      merchant_raw: parsed.merchantRaw,
+      source: parsed.source,
+      transaction_date: parsed.transactionDate.toISOString(),
+      parsed_confidence: parsed.confidence,
+      needs_review: parsed.confidence === "low",
+      raw_email_snippet: snippet(email.bodyText),
+    })
+  );
 
   // Unique constraint on email_message_id — a re-run hitting the same email
   // is expected and not an error.
@@ -38,12 +41,14 @@ async function insertTransaction(email: RawEmail, parsed: ParsedTransaction) {
 }
 
 async function logUnparsed(email: RawEmail, reason: string) {
-  const { error } = await supabase.from("unparsed_emails").insert({
-    email_message_id: email.messageId,
-    source_guess: email.from,
-    reason,
-    raw_email_snippet: snippet(email.bodyText),
-  });
+  const { error } = await withRetry(() =>
+    supabase.from("unparsed_emails").insert({
+      email_message_id: email.messageId,
+      source_guess: email.from,
+      reason,
+      raw_email_snippet: snippet(email.bodyText),
+    })
+  );
   if (error && error.code !== "23505") {
     throw error;
   }
@@ -68,62 +73,68 @@ async function main() {
   let aiFallback = 0;
   let unparsed = 0;
   let skippedNonTransactional = 0;
+  let failed = 0;
 
   for (const msgRef of messages) {
-    const full = await gmail.users.messages.get({
-      userId: "me",
-      id: msgRef.id!,
-      format: "full",
-    });
-    const email = toRawEmail(full.data);
+    try {
+      const full = await withRetry(() =>
+        gmail.users.messages.get({ userId: "me", id: msgRef.id!, format: "full" })
+      );
+      const email = toRawEmail(full.data);
 
-    if (isKnownNonTransactional(email.subject)) {
-      skippedNonTransactional++;
-      console.log(`- SKIP (non-transactional)  ${email.subject}`);
-      continue;
-    }
-
-    const parser = getParserForSender(email.from);
-    let parsed = parser?.(email) ?? null;
-
-    // Prefer Groq (free tier) over Anthropic (paid) when both happen to be configured.
-    const fallback = process.env.GROQ_API_KEY
-      ? extractWithGroqFallback
-      : process.env.ANTHROPIC_API_KEY
-        ? extractWithAnthropicFallback
-        : null;
-
-    if (!parsed && fallback) {
-      try {
-        parsed = await fallback(email);
-        if (parsed) aiFallback++;
-      } catch (err) {
-        console.error(`AI fallback failed for ${email.messageId}:`, err);
+      if (isKnownNonTransactional(email.subject)) {
+        skippedNonTransactional++;
+        console.log(`- SKIP (non-transactional)  ${email.subject}`);
+        continue;
       }
-    }
 
-    if (!parsed) {
-      unparsed++;
-      console.log(`✗ UNPARSED  ${email.subject}`);
+      const parser = getParserForSender(email.from);
+      let parsed = parser?.(email) ?? null;
+
+      // Prefer Groq (free tier) over Anthropic (paid) when both happen to be configured.
+      const fallback = process.env.GROQ_API_KEY
+        ? extractWithGroqFallback
+        : process.env.ANTHROPIC_API_KEY
+          ? extractWithAnthropicFallback
+          : null;
+
+      if (!parsed && fallback) {
+        try {
+          parsed = await fallback(email);
+          if (parsed) aiFallback++;
+        } catch (err) {
+          console.error(`AI fallback failed for ${email.messageId}:`, err);
+        }
+      }
+
+      if (!parsed) {
+        unparsed++;
+        console.log(`✗ UNPARSED  ${email.subject}`);
+        if (!DRY_RUN) {
+          const reason = fallback
+            ? "No parser matched and AI fallback failed or returned incomplete data"
+            : "No parser matched (AI fallback disabled — no GROQ_API_KEY/ANTHROPIC_API_KEY set)";
+          await logUnparsed(email, reason);
+        }
+        continue;
+      }
+
+      if (parsed.confidence === "low") lowConfidence++;
+
+      console.log(
+        `✓ ${parsed.direction.toUpperCase().padEnd(6)} ${parsed.currency} ${parsed.amount.toFixed(2).padStart(10)}  ${parsed.merchantRaw}  [${parsed.confidence}]`
+      );
+
       if (!DRY_RUN) {
-        const reason = fallback
-          ? "No parser matched and AI fallback failed or returned incomplete data"
-          : "No parser matched (AI fallback disabled — no GROQ_API_KEY/ANTHROPIC_API_KEY set)";
-        await logUnparsed(email, reason);
+        const { skipped } = await insertTransaction(email, parsed);
+        if (skipped) skippedDupe++;
+        else inserted++;
       }
-      continue;
-    }
-
-    if (parsed.confidence === "low") lowConfidence++;
-
-    console.log(
-      `✓ ${parsed.direction.toUpperCase().padEnd(6)} ${parsed.currency} ${parsed.amount.toFixed(2).padStart(10)}  ${parsed.merchantRaw}  [${parsed.confidence}]`
-    );
-
-    if (!DRY_RUN) {
-      const { skipped } = await insertTransaction(email, parsed);
-      if (skipped) skippedDupe++;
-      else inserted++;
+    } catch (err) {
+      // A single email's failure (e.g. a network blip that survived retries)
+      // shouldn't abort the rest of an unattended scheduled run.
+      failed++;
+      console.error(`✗ FAILED (message ${msgRef.id}):`, err);
     }
   }
 
@@ -135,6 +146,9 @@ async function main() {
   console.log(`Used AI fallback:   ${aiFallback}`);
   console.log(`Unparsed:           ${unparsed}`);
   console.log(`Skipped (non-txn):  ${skippedNonTransactional}`);
+  console.log(`Failed:             ${failed}`);
+
+  if (failed > 0) process.exitCode = 1;
 }
 
 main().catch((err) => {
