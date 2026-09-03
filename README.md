@@ -76,7 +76,7 @@ Safe to re-run — inserts are deduped on Gmail's message ID (`ON CONFLICT DO NO
 
 ## Running it automatically (macOS launchd)
 
-`scripts/run-fetch.sh` + `scripts/com.budgettracker.fetch.plist` run the ingestion job every 30 minutes in the background, no cron/hosting needed.
+`scripts/run-fetch.sh` + `scripts/com.budgettracker.fetch.plist` run the ingestion job every 5 minutes in the background, no cron/hosting needed.
 
 Install:
 ```

@@ -71,7 +71,13 @@ export function StatsGrid() {
       .then(setStats);
   }, []);
 
-  useEffect(refresh, [refresh]);
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, 20_000);
+    return () => clearInterval(interval);
+  }, [refresh]);
 
   if (!stats) {
     return (
