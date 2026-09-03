@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --text: #000000;
+  --text-secondary: #6b6b70;
+  --accent: #0a84ff;
+  --credit: #30d158;
+  --debit: #ff453a;
+  --separator: rgba(60, 60, 67, 0.1);
+  --pill-bg: rgba(120, 120, 128, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --text: #ffffff;
+    --text-secondary: #8e8e93;
+    --accent: #0a84ff;
+    --credit: #32d74b;
+    --debit: #ff453a;
+    --separator: rgba(84, 84, 88, 0.4);
+    --pill-bg: rgba(120, 120, 128, 0.24);
+  }
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior-y: none;
+}
+
+input,
+button {
+  font-family: inherit;
+}

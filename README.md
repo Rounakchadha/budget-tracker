@@ -1,9 +1,11 @@
-# Budget Tracker — Phase 1: Gmail Ingestion Pipeline
+# Budget Tracker
 
-Personal, single-user budget tracker. Phase 1 (this repo, as it stands) only
-does ingestion: read transaction alert emails from Gmail, parse them, and
-store them in Supabase. No frontend, notifications, or bill tracking yet —
-that's Phase 2+.
+Personal, single-user budget tracker with two parts in this repo:
+
+- **Ingestion pipeline** (root `src/`, this document) — reads transaction alert emails from Gmail, parses them, stores them in Supabase.
+- **Frontend** (`web/`) — a Next.js PWA (Apple Health-style UI) for browsing transactions, categorizing them, viewing spending summaries, and reconciling against a bank statement. See [web/README.md](web/README.md) for its setup.
+
+No notifications or bill tracking yet — future work.
 
 ## How it works
 
@@ -107,12 +109,11 @@ No other senders (GPay, PhonePe, Amex, etc.) are wired up yet. To add one:
 2. Write a parser in `src/parsers/<sender>.ts` following `axis.ts` as a template.
 3. Register it in `src/parsers/index.ts`.
 
-## What's explicitly NOT built yet (Phase 2+)
+## What's explicitly NOT built yet
 
-- Frontend (planned to look like Apple Health — clean, card-based, minimal)
 - Notifications
 - Bill tracking
-- Merchant categorization UI (the `needs_review` / `merchant_clean` / `category` columns exist in the schema but nothing writes to them yet)
+- Senders other than Axis Bank (GPay, PhonePe, Amex, etc.)
 
 ## Security notes
 
