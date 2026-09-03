@@ -6,7 +6,7 @@ table the root ingestion pipeline (`../src/`) populates.
 
 ## Features
 
-- **Activity** (`/`) — dashboard stats (total received, total spent, net balance, bills to pay — all all-time, computed from transactions/bills, not a real bank balance) plus a scrollable feed of all transactions, grouped by day.
+- **Activity** (`/`) — dashboard stats (total received, total spent, net balance, bills to pay) plus a scrollable feed of all transactions, grouped by day. Total received/spent are all-time sums from ingested transactions. Net Balance defaults to that same net cash flow (labeled "Net Balance (est.)") until you tap it and set your real current balance — from then on it's anchored: shown as "Balance", computed as that value plus every transaction since the moment you set it (`account_balance` table). Re-tap it anytime to re-anchor.
 - **Bills** (`/bills`, linked from the "Bills to Pay" stat) — manually add bills (name, amount, due date), mark paid/unpaid, delete. Simple list, no recurring/auto-generation.
 - **Review** (`/review`) — queue of transactions flagged `needs_review` (low parse confidence, e.g. bank reference codes with no readable name). Tap one to set its merchant name and category.
 - **Summary** (`/summary`) — monthly spend/income totals and a category breakdown, with month navigation.

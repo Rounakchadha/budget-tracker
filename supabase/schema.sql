@@ -39,3 +39,12 @@ create table bills (
 );
 
 create index on bills (paid, due_date);
+
+-- Singleton row: the balance you last told the app, and when. Net Balance
+-- is computed as this + all transactions after `as_of` — so editing it
+-- re-anchors the calculation and everything after keeps deriving automatically.
+create table account_balance (
+  id text primary key default 'singleton',
+  balance numeric not null,
+  as_of timestamptz not null default now()
+);

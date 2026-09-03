@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { BalanceEditSheet } from "./BalanceEditSheet";
 
 interface Stats {
   totalReceived: number;
   totalSpent: number;
   netBalance: number;
+  balanceAnchored: boolean;
+  balanceAsOf: string | null;
   billsToPay: number;
   billsCount: number;
 }
@@ -20,11 +23,13 @@ function Tile({
   value,
   color,
   href,
+  onClick,
 }: {
   label: string;
   value: string;
   color: string;
   href?: string;
+  onClick?: () => void;
 }) {
   const content = (
     <div className="rounded-2xl p-4" style={{ background: "var(--card)" }}>
@@ -37,23 +42,36 @@ function Tile({
     </div>
   );
 
-  return href ? (
-    <Link href={href} className="block active:opacity-70">
-      {content}
-    </Link>
-  ) : (
-    content
-  );
+  if (href) {
+    return (
+      <Link href={href} className="block active:opacity-70">
+        {content}
+      </Link>
+    );
+  }
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className="block w-full text-left active:opacity-70">
+        {content}
+      </button>
+    );
+  }
+
+  return content;
 }
 
 export function StatsGrid() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [editingBalance, setEditingBalance] = useState(false);
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     fetch("/api/stats")
       .then((r) => r.json())
       .then(setStats);
   }, []);
+
+  useEffect(refresh, [refresh]);
 
   if (!stats) {
     return (
@@ -66,20 +84,34 @@ export function StatsGrid() {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 px-4 pb-2">
-      <Tile label="Total Received" value={formatMoney(stats.totalReceived)} color="var(--credit)" />
-      <Tile label="Total Spent" value={formatMoney(stats.totalSpent)} color="var(--debit)" />
-      <Tile
-        label="Net Balance"
-        value={formatMoney(stats.netBalance)}
-        color={stats.netBalance >= 0 ? "var(--credit)" : "var(--debit)"}
-      />
-      <Tile
-        label={`Bills to Pay${stats.billsCount > 0 ? ` (${stats.billsCount})` : ""}`}
-        value={formatMoney(stats.billsToPay)}
-        color="var(--text)"
-        href="/bills"
-      />
-    </div>
+    <>
+      <div className="grid grid-cols-2 gap-3 px-4 pb-2">
+        <Tile label="Total Received" value={formatMoney(stats.totalReceived)} color="var(--credit)" />
+        <Tile label="Total Spent" value={formatMoney(stats.totalSpent)} color="var(--debit)" />
+        <Tile
+          label={stats.balanceAnchored ? "Balance" : "Net Balance (est.)"}
+          value={formatMoney(stats.netBalance)}
+          color={stats.netBalance >= 0 ? "var(--credit)" : "var(--debit)"}
+          onClick={() => setEditingBalance(true)}
+        />
+        <Tile
+          label={`Bills to Pay${stats.billsCount > 0 ? ` (${stats.billsCount})` : ""}`}
+          value={formatMoney(stats.billsToPay)}
+          color="var(--text)"
+          href="/bills"
+        />
+      </div>
+
+      {editingBalance && (
+        <BalanceEditSheet
+          currentValue={stats.netBalance}
+          onClose={() => setEditingBalance(false)}
+          onSaved={() => {
+            setEditingBalance(false);
+            refresh();
+          }}
+        />
+      )}
+    </>
   );
 }
