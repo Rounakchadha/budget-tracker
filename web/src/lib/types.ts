@@ -1,3 +1,11 @@
+export interface MerchantRule {
+  id: string;
+  sample_raw: string;
+  merchant_clean: string;
+  category: string;
+  created_at: string;
+}
+
 export interface Bill {
   id: string;
   name: string;

@@ -12,6 +12,8 @@ export const CATEGORIES: Category[] = [
   { name: "Bills & Utilities", emoji: "🧾", color: "#64D2FF" },
   { name: "Entertainment", emoji: "🎬", color: "#BF5AF2" },
   { name: "Health", emoji: "💊", color: "#FF453A" },
+  { name: "Cigarettes", emoji: "🚬", color: "#A2845E" },
+  { name: "Sports", emoji: "⚽", color: "#00C7BE" },
   { name: "Rent", emoji: "🏠", color: "#5E5CE6" },
   { name: "Salary", emoji: "💰", color: "#30D158" },
   { name: "Transfer", emoji: "🔁", color: "#8E8E93" },

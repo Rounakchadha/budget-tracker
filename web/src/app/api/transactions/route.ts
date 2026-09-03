@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { applyPendingMerchantRules } from "@/lib/merchant-rules";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const needsReview = searchParams.get("needsReview");
   const month = searchParams.get("month"); // "YYYY-MM"
   const limit = Number(searchParams.get("limit") ?? "200");
+
+  try {
+    await applyPendingMerchantRules();
+  } catch (err) {
+    console.error("applyPendingMerchantRules failed:", err);
+  }
 
   let query = supabaseServer
     .from("transactions")

@@ -12,7 +12,7 @@ table the root ingestion pipeline (`../src/`) populates.
 - **Summary** (`/summary`) — monthly spend/income totals and a category breakdown, with month navigation.
 - **Reconcile** (`/reconcile`) — upload an Axis Bank statement CSV export; matches its rows against ingested transactions by amount/date/direction and shows what's missing from either side.
 
-Tapping any transaction (Activity or Review) opens a sheet to set its merchant name and category — this writes `merchant_clean`, `category`, and clears `needs_review`.
+Tapping any transaction (Activity or Review) opens a sheet to set its merchant name and category — this writes `merchant_clean`, `category`, and clears `needs_review`. Checking "Apply to similar transactions" there does two things: relabels other transactions with a matching/similar `merchant_raw` (free local fuzzy string matching, `src/lib/similarity.ts` — no AI API call), and saves a `merchant_rules` row so future transactions from that vendor get auto-suggested. Auto-suggested matches are pre-filled but land in Review with `needs_review: true` rather than being silently applied, since fuzzy matching can occasionally be wrong — one tap to confirm. Rules are applied lazily (`applyPendingMerchantRules` in `src/lib/merchant-rules.ts`, called from `GET /api/transactions`) rather than by the ingestion pipeline, so `../src/` stays untouched.
 
 ## Architecture
 

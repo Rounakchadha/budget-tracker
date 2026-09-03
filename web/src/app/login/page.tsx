@@ -31,7 +31,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-6" style={{ background: "var(--bg)" }}>
+    <div className="flex min-h-dvh flex-col items-center justify-center overflow-y-auto px-6 py-12" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-xs">
         <h1 className="mb-1 text-center text-2xl font-semibold" style={{ color: "var(--text)" }}>
           Budget

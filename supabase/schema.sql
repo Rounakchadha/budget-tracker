@@ -48,3 +48,15 @@ create table account_balance (
   balance numeric not null,
   as_of timestamptz not null default now()
 );
+
+-- "Rename this vendor permanently" rules. sample_raw anchors a fuzzy-match
+-- comparison (see web/src/lib/similarity.ts) against merchant_raw on any
+-- future uncategorized transaction — matches get merchant_clean/category
+-- pre-filled but stay needs_review=true pending a one-time confirmation.
+create table merchant_rules (
+  id uuid primary key default gen_random_uuid(),
+  sample_raw text not null,
+  merchant_clean text not null,
+  category text not null,
+  created_at timestamptz not null default now()
+);
