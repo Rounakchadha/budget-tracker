@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { getCategory } from "@/lib/categories";
+import type { Transaction } from "@/lib/types";
 
 interface CategoryTotal {
   category: string;
   total: number;
   count: number;
+  transactions: Transaction[];
 }
 
 interface Summary {
@@ -25,6 +27,19 @@ function formatMoney(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 }
 
+function formatMoneyPrecise(n: number) {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function monthLabel(month: string) {
   const [y, m] = month.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
@@ -39,13 +54,24 @@ function shiftMonth(month: string, delta: number) {
 export default function SummaryPage() {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setSummary(null);
+    setExpanded(new Set());
     fetch(`/api/summary?month=${month}`)
       .then((r) => r.json())
       .then(setSummary);
   }, [month]);
+
+  function toggleExpanded(category: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }
 
   const maxCategoryTotal = summary?.byCategory[0]?.total ?? 0;
 
@@ -115,13 +141,22 @@ export default function SummaryPage() {
                 {summary.byCategory.map((c, i) => {
                   const cat = getCategory(c.category === "Uncategorized" ? null : c.category);
                   const pct = maxCategoryTotal > 0 ? (c.total / maxCategoryTotal) * 100 : 0;
+                  const isOpen = expanded.has(c.category);
                   return (
                     <div key={c.category}>
                       {i > 0 && <div className="ml-4 h-px" style={{ background: "var(--separator)" }} />}
-                      <div className="px-4 py-3">
+                      <button onClick={() => toggleExpanded(c.category)} className="block w-full px-4 py-3 text-left">
                         <div className="mb-1.5 flex items-center justify-between text-[15px]">
-                          <span style={{ color: "var(--text)" }}>
+                          <span className="flex items-center gap-1.5" style={{ color: "var(--text)" }}>
                             {cat.emoji} {c.category}
+                            <ChevronDown
+                              size={14}
+                              style={{
+                                color: "var(--text-secondary)",
+                                transform: isOpen ? "rotate(180deg)" : "none",
+                                transition: "transform 0.15s",
+                              }}
+                            />
                           </span>
                           <span className="font-medium tabular-nums" style={{ color: "var(--text)" }}>
                             {formatMoney(c.total)}
@@ -130,7 +165,30 @@ export default function SummaryPage() {
                         <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "var(--pill-bg)" }}>
                           <div className="h-full rounded-full" style={{ width: `${pct}%`, background: cat.color }} />
                         </div>
-                      </div>
+                      </button>
+
+                      {isOpen && (
+                        <div className="pb-2" style={{ background: "var(--bg)" }}>
+                          {c.transactions.map((t, ti) => (
+                            <div key={t.id}>
+                              {ti > 0 && <div className="ml-8 h-px" style={{ background: "var(--separator)" }} />}
+                              <div className="flex items-center justify-between px-4 py-2.5 pl-8">
+                                <div className="min-w-0">
+                                  <p className="truncate text-[14px]" style={{ color: "var(--text)" }}>
+                                    {t.merchant_clean ?? t.merchant_raw}
+                                  </p>
+                                  <p className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                                    {formatDateTime(t.transaction_date)}
+                                  </p>
+                                </div>
+                                <p className="shrink-0 text-[14px] tabular-nums" style={{ color: "var(--text)" }}>
+                                  {formatMoneyPrecise(t.amount)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

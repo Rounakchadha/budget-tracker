@@ -25,15 +25,16 @@ export async function GET(request: Request) {
   let totalDebit = 0;
   let totalCredit = 0;
   let needsReviewCount = 0;
-  const byCategory = new Map<string, { total: number; count: number }>();
+  const byCategory = new Map<string, { total: number; count: number; transactions: Transaction[] }>();
 
   for (const t of transactions) {
     if (t.direction === "debit") {
       totalDebit += t.amount;
       const key = t.category ?? "Uncategorized";
-      const existing = byCategory.get(key) ?? { total: 0, count: 0 };
+      const existing = byCategory.get(key) ?? { total: 0, count: 0, transactions: [] };
       existing.total += t.amount;
       existing.count += 1;
+      existing.transactions.push(t);
       byCategory.set(key, existing);
     } else {
       totalCredit += t.amount;
@@ -42,7 +43,14 @@ export async function GET(request: Request) {
   }
 
   const categories = Array.from(byCategory.entries())
-    .map(([category, v]) => ({ category, ...v }))
+    .map(([category, v]) => ({
+      category,
+      total: v.total,
+      count: v.count,
+      transactions: v.transactions.sort(
+        (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+      ),
+    }))
     .sort((a, b) => b.total - a.total);
 
   return NextResponse.json({
