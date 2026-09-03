@@ -1,7 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
 
-export async function proxy(_request: NextRequest) {
-  // Password gate temporarily disabled — see git history to restore.
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/login") || pathname.startsWith("/api/login")) {
+    return NextResponse.next();
+  }
+
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const valid = await verifySessionToken(token, process.env.SESSION_SECRET!);
+
+  if (!valid) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
   return NextResponse.next();
 }
 
