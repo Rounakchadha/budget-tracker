@@ -3,6 +3,7 @@
 import { useTransactions } from "@/lib/use-transactions";
 import { TransactionList } from "@/components/TransactionList";
 import { PageHeader } from "@/components/PageHeader";
+import { StatsGrid } from "@/components/StatsGrid";
 
 export default function ActivityPage() {
   const { transactions, error, updateOne } = useTransactions("");
@@ -10,6 +11,7 @@ export default function ActivityPage() {
   return (
     <div>
       <PageHeader title="Activity" />
+      <StatsGrid />
       {error && (
         <p className="px-5 text-[15px]" style={{ color: "var(--debit)" }}>
           {error}

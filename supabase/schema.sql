@@ -28,3 +28,14 @@ create table unparsed_emails (
   raw_email_snippet text,
   created_at timestamptz not null default now()
 );
+
+create table bills (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  amount numeric not null,
+  due_date date not null,
+  paid boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index on bills (paid, due_date);

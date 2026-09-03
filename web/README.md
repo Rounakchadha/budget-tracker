@@ -6,7 +6,8 @@ table the root ingestion pipeline (`../src/`) populates.
 
 ## Features
 
-- **Activity** (`/`) — scrollable feed of all transactions, grouped by day.
+- **Activity** (`/`) — dashboard stats (total received, total spent, net balance, bills to pay — all all-time, computed from transactions/bills, not a real bank balance) plus a scrollable feed of all transactions, grouped by day.
+- **Bills** (`/bills`, linked from the "Bills to Pay" stat) — manually add bills (name, amount, due date), mark paid/unpaid, delete. Simple list, no recurring/auto-generation.
 - **Review** (`/review`) — queue of transactions flagged `needs_review` (low parse confidence, e.g. bank reference codes with no readable name). Tap one to set its merchant name and category.
 - **Summary** (`/summary`) — monthly spend/income totals and a category breakdown, with month navigation.
 - **Reconcile** (`/reconcile`) — upload an Axis Bank statement CSV export; matches its rows against ingested transactions by amount/date/direction and shows what's missing from either side.

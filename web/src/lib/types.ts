@@ -1,3 +1,12 @@
+export interface Bill {
+  id: string;
+  name: string;
+  amount: number;
+  due_date: string;
+  paid: boolean;
+  created_at: string;
+}
+
 export interface Transaction {
   id: string;
   email_message_id: string;
