@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import type { Transaction } from "@/lib/types";
+import { BottomSheet } from "./BottomSheet";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -60,14 +61,7 @@ export function AddTransactionSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]"
-        style={{ background: "var(--card)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mx-auto mb-4 h-1 w-9 rounded-full" style={{ background: "var(--separator)" }} />
-
+    <BottomSheet onClose={onClose}>
         <p className="mb-1 text-[15px] font-medium" style={{ color: "var(--text)" }}>
           Add a payment
         </p>
@@ -165,7 +159,6 @@ export function AddTransactionSheet({
         >
           {saving ? "Adding…" : "Add"}
         </button>
-      </div>
-    </div>
+    </BottomSheet>
   );
 }

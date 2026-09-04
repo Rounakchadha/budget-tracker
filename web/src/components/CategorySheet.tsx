@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import type { Transaction } from "@/lib/types";
+import { BottomSheet } from "./BottomSheet";
 
 interface SimilarGroup {
   merchantRaw: string;
@@ -108,14 +109,7 @@ export function CategorySheet({
   if (step === "confirm-similar") {
     const selectedCount = groups.filter((g) => checkedRaws.has(g.merchantRaw)).reduce((s, g) => s + g.count, 0);
     return (
-      <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40" onClick={onClose}>
-        <div
-          className="w-full max-w-md rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]"
-          style={{ background: "var(--card)" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="mx-auto mb-4 h-1 w-9 rounded-full" style={{ background: "var(--separator)" }} />
-
+      <BottomSheet onClose={onClose}>
           <p className="mb-1 text-[15px] font-medium" style={{ color: "var(--text)" }}>
             Found {groups.reduce((s, g) => s + g.count, 0)} similar transaction{groups.length === 1 && groups[0].count === 1 ? "" : "s"}
           </p>
@@ -159,20 +153,12 @@ export function CategorySheet({
           >
             {saving ? "Applying…" : selectedCount > 0 ? `Apply to ${selectedCount} transaction${selectedCount === 1 ? "" : "s"}` : "Skip"}
           </button>
-        </div>
-      </div>
+      </BottomSheet>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]"
-        style={{ background: "var(--card)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mx-auto mb-4 h-1 w-9 rounded-full" style={{ background: "var(--separator)" }} />
-
+    <BottomSheet onClose={onClose}>
         <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
           Merchant
         </p>
@@ -239,7 +225,6 @@ export function CategorySheet({
             {deleting ? "Deleting…" : "Delete this entry"}
           </button>
         )}
-      </div>
-    </div>
+    </BottomSheet>
   );
 }
