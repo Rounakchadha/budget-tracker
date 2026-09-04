@@ -7,6 +7,9 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export async function POST(request: Request) {
   const body = await request.json();
+  if (!Array.isArray(body.rows)) {
+    return NextResponse.json({ error: "rows must be an array" }, { status: 400 });
+  }
   const rawRows = body.rows as Record<string, string>[];
 
   const { rows, unrecognizedHeaders } = parseStatementRows(rawRows);

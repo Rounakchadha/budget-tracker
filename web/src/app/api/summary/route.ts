@@ -6,7 +6,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const month = searchParams.get("month") ?? new Date().toISOString().slice(0, 7);
 
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return NextResponse.json({ error: "month must be in YYYY-MM format" }, { status: 400 });
+  }
   const [year, m] = month.split("-").map(Number);
+  if (m < 1 || m > 12) {
+    return NextResponse.json({ error: "month must be in YYYY-MM format" }, { status: 400 });
+  }
   const start = new Date(Date.UTC(year, m - 1, 1)).toISOString();
   const end = new Date(Date.UTC(year, m, 1)).toISOString();
 

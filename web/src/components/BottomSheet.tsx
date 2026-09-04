@@ -41,12 +41,22 @@ export function BottomSheet({
   const dragYRef = useRef(0);
   const startYRef = useRef(0);
   const contentRef = useRef<HTMLDivElement>(null);
+  const isClosingRef = useRef(false);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const closeWithAnimation = useCallback(() => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
     setIsDragging(false);
     setIsClosing(true);
-    setTimeout(onClose, CLOSE_ANIMATION_MS);
+    closeTimeoutRef.current = setTimeout(onClose, CLOSE_ANIMATION_MS);
   }, [onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const scrollY = window.scrollY;
