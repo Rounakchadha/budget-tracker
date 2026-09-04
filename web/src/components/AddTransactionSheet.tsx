@@ -4,9 +4,16 @@ import { useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import type { Transaction } from "@/lib/types";
 
-function toDatetimeLocal(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function toDateInput(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function toTimeInput(d: Date) {
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function AddTransactionSheet({
@@ -20,7 +27,8 @@ export function AddTransactionSheet({
   const [direction, setDirection] = useState<"debit" | "credit">("debit");
   const [merchant, setMerchant] = useState("");
   const [category, setCategory] = useState<string | null>(null);
-  const [when, setWhen] = useState(() => toDatetimeLocal(new Date()));
+  const [date, setDate] = useState(() => toDateInput(new Date()));
+  const [time, setTime] = useState(() => toTimeInput(new Date()));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +46,7 @@ export function AddTransactionSheet({
         direction,
         merchant: merchant.trim(),
         category,
-        transaction_date: new Date(when).toISOString(),
+        transaction_date: new Date(`${date}T${time}`).toISOString(),
       }),
     });
     setSaving(false);
@@ -54,7 +62,7 @@ export function AddTransactionSheet({
   return (
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]"
+        className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]"
         style={{ background: "var(--card)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -103,13 +111,22 @@ export function AddTransactionSheet({
           style={{ background: "var(--bg)", color: "var(--text)" }}
         />
 
-        <input
-          type="datetime-local"
-          value={when}
-          onChange={(e) => setWhen(e.target.value)}
-          className="mb-5 w-full rounded-xl px-3.5 py-2.5 text-base outline-none ring-1 ring-black/5"
-          style={{ background: "var(--bg)", color: "var(--text)" }}
-        />
+        <div className="mb-5 flex gap-2.5">
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-0 min-w-0 flex-1 rounded-xl px-3.5 py-2.5 text-base outline-none ring-1 ring-black/5"
+            style={{ background: "var(--bg)", color: "var(--text)" }}
+          />
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="w-0 min-w-0 flex-1 rounded-xl px-3.5 py-2.5 text-base outline-none ring-1 ring-black/5"
+            style={{ background: "var(--bg)", color: "var(--text)" }}
+          />
+        </div>
 
         <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
           Category (optional)
