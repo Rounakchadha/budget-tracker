@@ -6,6 +6,17 @@ export interface MerchantRule {
   created_at: string;
 }
 
+export interface Split {
+  id: string;
+  person_name: string;
+  amount: number;
+  direction: "i_owe" | "owed_to_me";
+  description: string | null;
+  date: string;
+  settled: boolean;
+  created_at: string;
+}
+
 export interface Bill {
   id: string;
   name: string;

@@ -60,3 +60,17 @@ create table merchant_rules (
   category text not null,
   created_at timestamptz not null default now()
 );
+
+-- Manual IOU ledger (Splitwise-like, entirely self-hosted — no external API).
+create table splits (
+  id uuid primary key default gen_random_uuid(),
+  person_name text not null,
+  amount numeric not null,
+  direction text not null check (direction in ('i_owe', 'owed_to_me')),
+  description text,
+  date date not null default current_date,
+  settled boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index on splits (person_name, settled);

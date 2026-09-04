@@ -8,6 +8,7 @@ table the root ingestion pipeline (`../src/`) populates.
 
 - **Activity** (`/`) — dashboard stats (total received, total spent, net balance, bills to pay) plus a scrollable feed of all transactions, grouped by day. Total received/spent are all-time sums from ingested transactions. Net Balance defaults to that same net cash flow (labeled "Net Balance (est.)") until you tap it and set your real current balance — from then on it's anchored: shown as "Balance", computed as that value plus every transaction since the moment you set it (`account_balance` table). Re-tap it anytime to re-anchor.
 - **Bills** (`/bills`, linked from the "Bills to Pay" stat) — manually add bills (name, amount, due date), mark paid/unpaid, delete. Simple list, no recurring/auto-generation.
+- **Splits** (`/splits`, linked from the "You're Owed"/"You Owe" stat) — manual Splitwise-like IOU ledger (Splitwise's real API is Pro-only now, so this is self-hosted instead): add entries per person (amount, direction, what for), grouped by person with a running net, settle individually or all-at-once per person. No external account/API involved.
 - **Review** (`/review`) — queue of transactions flagged `needs_review` (low parse confidence, e.g. bank reference codes with no readable name). Tap one to set its merchant name and category.
 - **Summary** (`/summary`) — monthly spend/income totals and a category breakdown, with month navigation.
 - **Reconcile** (`/reconcile`) — upload an Axis Bank statement CSV export; matches its rows against ingested transactions by amount/date/direction and shows what's missing from either side.
@@ -48,6 +49,30 @@ npm run dev
 3. Set the **Root Directory** to `web` (important — this is a subfolder of the repo, not the repo root).
 4. Add the four env vars above under Project Settings → Environment Variables.
 5. Deploy. Open the URL on your iPhone in Safari → Share → **Add to Home Screen** for the PWA install.
+
+## Instant ingestion (Gmail push)
+
+By default, transactions only appear after the root project's local poller (`../src/scripts/fetch-transactions.ts`, run every 5 min via `launchd`) runs. `/api/gmail/webhook` + `/api/gmail/watch` add a second, near-instant path: Gmail notifies a Google Cloud Pub/Sub topic the moment a new email lands, Pub/Sub pushes it to `/api/gmail/webhook`, which diffs the mailbox history and inserts anything the fast regex Axis parser (`src/lib/gmail-webhook/`) recognizes — usually within a few seconds of the email arriving.
+
+This is additive, not a replacement: the webhook only has the regex parser (no AI fallback, to stay fast), so anything it can't parse is left for the local poller to catch on its next run (both paths insert with `email_message_id` as a unique key, so there's no double-counting either way).
+
+**One-time setup** (needs a Google Cloud project — the same one your `GOOGLE_CLIENT_ID` OAuth client lives in — and the app deployed to Vercel first, since Pub/Sub needs a public HTTPS URL to push to):
+
+1. In Google Cloud Console for that project: enable the **Cloud Pub/Sub API**.
+2. Create a Pub/Sub topic, e.g. `gmail-tx-notifications`.
+3. On that topic, grant **Pub/Sub Publisher** to the principal `gmail-api-push@system.gserviceaccount.com` (this is Gmail's own service account — required for any Gmail watch to publish to your topic).
+4. Create a **push subscription** on the topic:
+   - Endpoint URL: `https://<your-vercel-domain>/api/gmail/webhook`
+   - Enable authentication — pick/create a service account for this, set it as the subscription's push auth service account, and set the **audience** to the endpoint URL above (or any fixed string, as long as it matches `PUBSUB_PUSH_AUDIENCE` below).
+5. In Vercel project settings, add env vars:
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` — same values as the root `.env`
+   - `GMAIL_PUBSUB_TOPIC` — full resource name, e.g. `projects/<gcp-project-id>/topics/gmail-tx-notifications`
+   - `PUBSUB_PUSH_SERVICE_ACCOUNT` — the service account email from step 4
+   - `PUBSUB_PUSH_AUDIENCE` — the audience string from step 4
+   - `CRON_SECRET` — any random string (`openssl rand -hex 32`); Vercel automatically sends this as a bearer token on Vercel Cron requests once it's set, which `/api/gmail/watch` checks
+6. Deploy. `vercel.json` schedules `/api/gmail/watch` daily (Gmail watches expire after 7 days) — but it won't have run yet, so kick it off once manually: `curl -X POST -H "Authorization: Bearer <CRON_SECRET>" https://<your-vercel-domain>/api/gmail/watch`.
+
+From then on, new Axis alert emails should show up in the app within seconds. If nothing shows up, check the Vercel function logs for `/api/gmail/webhook` — most likely cause is a mismatched `PUBSUB_PUSH_AUDIENCE`/`PUBSUB_PUSH_SERVICE_ACCOUNT` (401s) or the subscription's endpoint URL being wrong.
 
 ## Statement CSV format
 
