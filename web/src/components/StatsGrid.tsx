@@ -104,6 +104,19 @@ export function StatsGrid() {
   return (
     <>
       <div className="px-4 pb-2">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="ml-3 text-[15px] font-medium" style={{ color: "var(--text)" }}>
+            Hi Rounak
+          </p>
+          <button
+            onClick={() => setPeriod((p) => (p === "month" ? "all" : "month"))}
+            className="rounded-full px-3 py-1 text-[12px] font-medium active:opacity-70"
+            style={{ background: "var(--card)", color: "var(--text-secondary)" }}
+          >
+            {period === "month" ? "This Month" : "All Time"}
+          </button>
+        </div>
+
         <button
           onClick={() => setEditingBalance(true)}
           className="mb-4 block w-full rounded-2xl p-5 text-center active:opacity-70"
@@ -119,16 +132,6 @@ export function StatsGrid() {
             {formatMoney(stats.netBalance)}
           </p>
         </button>
-
-        <div className="mb-2 flex justify-end">
-          <button
-            onClick={() => setPeriod((p) => (p === "month" ? "all" : "month"))}
-            className="rounded-full px-3 py-1 text-[12px] font-medium active:opacity-70"
-            style={{ background: "var(--card)", color: "var(--text-secondary)" }}
-          >
-            {period === "month" ? "This Month" : "All Time"}
-          </button>
-        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Tile label="Total Received" value={formatMoney(stats.totalReceived)} color="var(--credit)" />
