@@ -114,12 +114,29 @@ export default function SplitsPage() {
   const groups = splits ? groupByPerson(splits) : [];
   const activeGroups = groups.filter((g) => g.entries.some((e) => !e.settled));
   const settledOnlyGroups = groups.filter((g) => g.entries.every((e) => e.settled));
+  const overallNet = (splits ?? [])
+    .filter((s) => !s.settled)
+    .reduce((sum, s) => sum + (s.direction === "owed_to_me" ? s.amount : -s.amount), 0);
 
   return (
     <div>
-      <PageHeader title="Splits" subtitle="Who owes what — tracked manually, no Splitwise account needed" />
+      <PageHeader title="Splits" />
 
       <div className="px-4">
+        {splits && (
+          <div className="mb-4 rounded-2xl p-5 text-center" style={{ background: "var(--card)" }}>
+            <p className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
+              {overallNet >= 0 ? "You're Owed" : "You Owe"}
+            </p>
+            <p
+              className="mt-1 text-4xl font-semibold tabular-nums"
+              style={{ color: overallNet >= 0 ? "var(--credit)" : "var(--debit)" }}
+            >
+              {formatMoney(Math.abs(overallNet))}
+            </p>
+          </div>
+        )}
+
         {!formOpen ? (
           <button
             onClick={() => setFormOpen(true)}
