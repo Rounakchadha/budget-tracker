@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     { data: splits, error: splitsError },
   ] = await Promise.all([
     supabaseServer.from("transactions").select("amount, direction, transaction_date"),
-    supabaseServer.from("bills").select("amount, paid").eq("paid", false),
+    supabaseServer.from("bills").select("amount, paid, due_date").eq("paid", false),
     supabaseServer.from("account_balance").select("*").eq("id", "singleton").maybeSingle(),
     supabaseServer.from("splits").select("amount, direction, settled").eq("settled", false),
   ]);
@@ -23,7 +23,14 @@ export async function GET(request: NextRequest) {
 
   const now = new Date();
   const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  const monthEnd = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
   const inPeriod = (dateIso: string) => period === "all" || new Date(dateIso).getTime() >= monthStart;
+  const dueInPeriod = (dueDate: string) => {
+    if (period === "all") return true;
+    // due_date is a plain date (no time) — parse as UTC midnight to match monthStart/monthEnd.
+    const t = new Date(`${dueDate}T00:00:00Z`).getTime();
+    return t >= monthStart && t < monthEnd;
+  };
 
   let totalReceived = 0;
   let totalSpent = 0;
@@ -46,7 +53,8 @@ export async function GET(request: NextRequest) {
     netBalance = balanceRow.balance + sinceAnchor;
   }
 
-  const billsToPay = (bills ?? []).reduce((sum, b) => sum + b.amount, 0);
+  const billsDue = (bills ?? []).filter((b) => dueInPeriod(b.due_date));
+  const billsToPay = billsDue.reduce((sum, b) => sum + b.amount, 0);
 
   let splitsNet = 0;
   for (const s of splits ?? []) {
@@ -62,7 +70,7 @@ export async function GET(request: NextRequest) {
     balanceAnchored: !!balanceRow,
     balanceAsOf: balanceRow?.as_of ?? null,
     billsToPay: round2(billsToPay),
-    billsCount: (bills ?? []).length,
+    billsCount: billsDue.length,
     splitsNet: round2(splitsNet),
     splitsCount: (splits ?? []).length,
   });
