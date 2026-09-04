@@ -44,5 +44,13 @@ export function useTransactions(query: string) {
     setTransactions((prev) => prev?.map((t) => (t.id === updated.id ? updated : t)) ?? prev);
   }
 
-  return { transactions, error, refresh, updateOne };
+  function addOne(created: Transaction) {
+    setTransactions((prev) => (prev ? [created, ...prev] : [created]));
+  }
+
+  function removeOne(id: string) {
+    setTransactions((prev) => prev?.filter((t) => t.id !== id) ?? prev);
+  }
+
+  return { transactions, error, refresh, updateOne, addOne, removeOne };
 }

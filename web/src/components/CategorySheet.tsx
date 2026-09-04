@@ -14,15 +14,25 @@ export function CategorySheet({
   transaction,
   onClose,
   onSaved,
+  onDeleted,
 }: {
   transaction: Transaction;
   onClose: () => void;
   onSaved: (updated: Transaction) => void;
+  onDeleted?: (id: string) => void;
 }) {
   const [merchantClean, setMerchantClean] = useState(transaction.merchant_clean ?? transaction.merchant_raw);
   const [category, setCategory] = useState(transaction.category);
   const [applyToSimilar, setApplyToSimilar] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    const res = await fetch(`/api/transactions/${transaction.id}`, { method: "DELETE" });
+    setDeleting(false);
+    if (res.ok) onDeleted?.(transaction.id);
+  }
 
   const [step, setStep] = useState<"edit" | "confirm-similar">("edit");
   const [groups, setGroups] = useState<SimilarGroup[]>([]);
@@ -218,6 +228,17 @@ export function CategorySheet({
         >
           {saving ? "Saving…" : "Save"}
         </button>
+
+        {transaction.source === "Manual" && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="mt-3 w-full rounded-2xl py-3 text-[14px] font-medium disabled:opacity-40"
+            style={{ color: "var(--debit)" }}
+          >
+            {deleting ? "Deleting…" : "Delete this entry"}
+          </button>
+        )}
       </div>
     </div>
   );

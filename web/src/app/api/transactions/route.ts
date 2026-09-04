@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { applyPendingMerchantRules } from "@/lib/merchant-rules";
@@ -38,4 +39,46 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ transactions: data });
+}
+
+// Manual entry — for when the bank alert email hasn't arrived yet (or never
+// will). Marked source: "Manual" so it's identifiable if the real email
+// shows up later and needs deleting to avoid double-counting.
+export async function POST(request: Request) {
+  const body = await request.json();
+  const { amount, direction, merchant, category, transaction_date } = body;
+
+  if (typeof amount !== "number" || amount <= 0) {
+    return NextResponse.json({ error: "amount must be a positive number" }, { status: 400 });
+  }
+  if (direction !== "debit" && direction !== "credit") {
+    return NextResponse.json({ error: "direction must be 'debit' or 'credit'" }, { status: 400 });
+  }
+  if (typeof merchant !== "string" || !merchant.trim()) {
+    return NextResponse.json({ error: "merchant is required" }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseServer
+    .from("transactions")
+    .insert({
+      email_message_id: `manual-${randomUUID()}`,
+      amount,
+      currency: "INR",
+      direction,
+      merchant_raw: merchant.trim(),
+      merchant_clean: merchant.trim(),
+      category: category || null,
+      source: "Manual",
+      transaction_date: transaction_date || new Date().toISOString(),
+      parsed_confidence: "high",
+      needs_review: !category,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ transaction: data });
 }

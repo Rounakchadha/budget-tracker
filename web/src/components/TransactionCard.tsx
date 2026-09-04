@@ -16,9 +16,11 @@ function formatTime(iso: string) {
 export function TransactionCard({
   transaction,
   onUpdate,
+  onDelete,
 }: {
   transaction: Transaction;
   onUpdate: (updated: Transaction) => void;
+  onDelete?: (id: string) => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const category = getCategory(transaction.category);
@@ -66,6 +68,10 @@ export function TransactionCard({
           onClose={() => setSheetOpen(false)}
           onSaved={(updated) => {
             onUpdate(updated);
+            setSheetOpen(false);
+          }}
+          onDeleted={(id) => {
+            onDelete?.(id);
             setSheetOpen(false);
           }}
         />

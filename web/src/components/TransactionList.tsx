@@ -20,10 +20,12 @@ function dateHeading(iso: string) {
 export function TransactionList({
   transactions,
   onUpdate,
+  onDelete,
   emptyMessage = "No transactions",
 }: {
   transactions: Transaction[];
   onUpdate: (updated: Transaction) => void;
+  onDelete?: (id: string) => void;
   emptyMessage?: string;
 }) {
   if (transactions.length === 0) {
@@ -52,7 +54,7 @@ export function TransactionList({
             {items.map((t, i) => (
               <div key={t.id}>
                 {i > 0 && <div className="ml-16 h-px" style={{ background: "var(--separator)" }} />}
-                <TransactionCard transaction={t} onUpdate={onUpdate} />
+                <TransactionCard transaction={t} onUpdate={onUpdate} onDelete={onDelete} />
               </div>
             ))}
           </div>
