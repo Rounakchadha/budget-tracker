@@ -89,7 +89,6 @@ export function AddTransactionSheet({
         <input
           type="number"
           step="0.01"
-          autoFocus
           placeholder="Amount"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
