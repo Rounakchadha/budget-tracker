@@ -66,14 +66,8 @@ export function TransactionCard({
         <CategorySheet
           transaction={transaction}
           onClose={() => setSheetOpen(false)}
-          onSaved={(updated) => {
-            onUpdate(updated);
-            setSheetOpen(false);
-          }}
-          onDeleted={(id) => {
-            onDelete?.(id);
-            setSheetOpen(false);
-          }}
+          onSaved={(updated) => onUpdate(updated)}
+          onDeleted={(id) => onDelete?.(id)}
         />
       )}
     </>

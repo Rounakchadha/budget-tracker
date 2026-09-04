@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 const DISMISS_THRESHOLD_PX = 80;
 // Below this, a touch is treated as a tap/scroll, not a drag — avoids
@@ -9,6 +9,14 @@ const DRAG_START_THRESHOLD_PX = 10;
 // How long the sheet takes to finish sliding off-screen once a swipe (or a
 // backdrop tap) has committed to closing it, before actually unmounting.
 const CLOSE_ANIMATION_MS = 280;
+
+// Lets content inside a BottomSheet (e.g. a "Save" button's success handler)
+// trigger the same animated slide-down used for swipe/backdrop dismissal,
+// instead of the parent unmounting it instantly via its own onClose.
+const BottomSheetCloseContext = createContext<() => void>(() => {});
+export function useBottomSheetClose() {
+  return useContext(BottomSheetCloseContext);
+}
 
 // Shared chrome for every bottom sheet in the app: dims + locks the
 // background (no scrolling behind it — `overflow: hidden` on body alone
@@ -132,7 +140,7 @@ export function BottomSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1 w-9 rounded-full" style={{ background: "var(--separator)" }} />
-        {children}
+        <BottomSheetCloseContext.Provider value={closeWithAnimation}>{children}</BottomSheetCloseContext.Provider>
       </div>
     </div>
   );

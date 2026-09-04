@@ -157,10 +157,7 @@ export function StatsGrid() {
         <BalanceEditSheet
           currentValue={stats.netBalance}
           onClose={() => setEditingBalance(false)}
-          onSaved={() => {
-            setEditingBalance(false);
-            refresh(period);
-          }}
+          onSaved={() => refresh(period)}
         />
       )}
     </>

@@ -50,10 +50,7 @@ export default function ActivityPage() {
       {adding && (
         <AddTransactionSheet
           onClose={() => setAdding(false)}
-          onAdded={(created) => {
-            addOne(created);
-            setAdding(false);
-          }}
+          onAdded={(created) => addOne(created)}
         />
       )}
     </div>

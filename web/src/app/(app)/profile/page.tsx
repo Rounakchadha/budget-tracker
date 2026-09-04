@@ -153,10 +153,7 @@ export default function ProfilePage() {
         <BalanceEditSheet
           currentValue={balance?.balance ?? 0}
           onClose={() => setEditingBalance(false)}
-          onSaved={() => {
-            setEditingBalance(false);
-            refreshBalance();
-          }}
+          onSaved={() => refreshBalance()}
         />
       )}
     </div>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import type { Transaction } from "@/lib/types";
-import { BottomSheet } from "./BottomSheet";
+import { BottomSheet, useBottomSheetClose } from "./BottomSheet";
 
 interface SimilarGroup {
   merchantRaw: string;
@@ -24,6 +24,69 @@ export function CategorySheet({
 }) {
   const [merchantClean, setMerchantClean] = useState(transaction.merchant_clean ?? transaction.merchant_raw);
   const [category, setCategory] = useState(transaction.category);
+  const [step, setStep] = useState<"edit" | "confirm-similar">("edit");
+  const [groups, setGroups] = useState<SimilarGroup[]>([]);
+  const [checkedRaws, setCheckedRaws] = useState<Set<string>>(new Set());
+  const [savedTransaction, setSavedTransaction] = useState<Transaction | null>(null);
+
+  if (step === "confirm-similar") {
+    return (
+      <BottomSheet onClose={onClose}>
+        <ConfirmSimilarForm
+          merchantClean={merchantClean}
+          category={category}
+          sampleRaw={transaction.merchant_raw}
+          groups={groups}
+          checkedRaws={checkedRaws}
+          setCheckedRaws={setCheckedRaws}
+          savedTransaction={savedTransaction}
+          onSaved={onSaved}
+        />
+      </BottomSheet>
+    );
+  }
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <CategoryEditForm
+        transaction={transaction}
+        merchantClean={merchantClean}
+        setMerchantClean={setMerchantClean}
+        category={category}
+        setCategory={setCategory}
+        onSaved={onSaved}
+        onDeleted={onDeleted}
+        onNeedsSimilarConfirm={(updated, matchedGroups) => {
+          setSavedTransaction(updated);
+          setGroups(matchedGroups);
+          setCheckedRaws(new Set(matchedGroups.map((g) => g.merchantRaw)));
+          setStep("confirm-similar");
+        }}
+      />
+    </BottomSheet>
+  );
+}
+
+function CategoryEditForm({
+  transaction,
+  merchantClean,
+  setMerchantClean,
+  category,
+  setCategory,
+  onSaved,
+  onDeleted,
+  onNeedsSimilarConfirm,
+}: {
+  transaction: Transaction;
+  merchantClean: string;
+  setMerchantClean: (v: string) => void;
+  category: string | null;
+  setCategory: (v: string) => void;
+  onSaved: (updated: Transaction) => void;
+  onDeleted?: (id: string) => void;
+  onNeedsSimilarConfirm: (updated: Transaction, groups: SimilarGroup[]) => void;
+}) {
+  const closeAnimated = useBottomSheetClose();
   const [applyToSimilar, setApplyToSimilar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -32,13 +95,11 @@ export function CategorySheet({
     setDeleting(true);
     const res = await fetch(`/api/transactions/${transaction.id}`, { method: "DELETE" });
     setDeleting(false);
-    if (res.ok) onDeleted?.(transaction.id);
+    if (res.ok) {
+      onDeleted?.(transaction.id);
+      closeAnimated();
+    }
   }
-
-  const [step, setStep] = useState<"edit" | "confirm-similar">("edit");
-  const [groups, setGroups] = useState<SimilarGroup[]>([]);
-  const [checkedRaws, setCheckedRaws] = useState<Set<string>>(new Set());
-  const [savedTransaction, setSavedTransaction] = useState<Transaction | null>(null);
 
   async function handleSave() {
     if (!category) return;
@@ -58,6 +119,7 @@ export function CategorySheet({
 
     if (!applyToSimilar) {
       onSaved(updated);
+      closeAnimated();
       return;
     }
 
@@ -69,33 +131,106 @@ export function CategorySheet({
 
     if (!similarRes.ok || (similarData.groups as SimilarGroup[]).length === 0) {
       onSaved(updated);
+      closeAnimated();
       return;
     }
 
-    setSavedTransaction(updated);
-    setGroups(similarData.groups);
-    setCheckedRaws(new Set(similarData.groups.map((g: SimilarGroup) => g.merchantRaw)));
-    setStep("confirm-similar");
+    onNeedsSimilarConfirm(updated, similarData.groups);
   }
 
-  async function handleConfirmSimilar() {
-    setSaving(true);
-    const applyToIds = groups.filter((g) => checkedRaws.has(g.merchantRaw)).flatMap((g) => g.ids);
+  return (
+    <>
+      <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
+        Merchant
+      </p>
+      <input
+        value={merchantClean}
+        onChange={(e) => setMerchantClean(e.target.value)}
+        className="mb-3 w-full rounded-xl px-3.5 py-2.5 text-base outline-none ring-1 ring-black/5"
+        style={{ background: "var(--bg)", color: "var(--text)" }}
+      />
 
-    await fetch("/api/merchant-rules", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sampleRaw: transaction.merchant_raw,
-        merchantClean,
-        category,
-        applyToIds,
-      }),
-    });
+      <button
+        onClick={() => setApplyToSimilar((v) => !v)}
+        className="mb-5 flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left text-[13px]"
+        style={{ background: "var(--bg)", color: "var(--text-secondary)" }}
+      >
+        <div
+          className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-md text-[10px] text-white"
+          style={{ background: applyToSimilar ? "var(--accent)" : "var(--pill-bg)" }}
+        >
+          {applyToSimilar && "✓"}
+        </div>
+        Apply this name/category to similar transactions, and remember it for future ones
+      </button>
 
-    setSaving(false);
-    onSaved(savedTransaction!);
-  }
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
+        Category
+      </p>
+      <div className="mb-6 grid grid-cols-3 gap-2">
+        {CATEGORIES.map((c) => {
+          const selected = category === c.name;
+          return (
+            <button
+              key={c.name}
+              onClick={() => setCategory(c.name)}
+              className="flex flex-col items-center gap-1 rounded-2xl px-2 py-3 text-xs transition-transform active:scale-95"
+              style={{
+                background: selected ? c.color : "var(--bg)",
+                color: selected ? "#fff" : "var(--text)",
+              }}
+            >
+              <span className="text-xl">{c.emoji}</span>
+              <span className="text-center leading-tight">{c.name}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving || !category}
+        className="w-full rounded-2xl py-3.5 text-base font-medium text-white disabled:opacity-40"
+        style={{ background: "var(--accent)" }}
+      >
+        {saving ? "Saving…" : "Save"}
+      </button>
+
+      {transaction.source === "Manual" && (
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="mt-3 w-full rounded-2xl py-3 text-[14px] font-medium disabled:opacity-40"
+          style={{ color: "var(--debit)" }}
+        >
+          {deleting ? "Deleting…" : "Delete this entry"}
+        </button>
+      )}
+    </>
+  );
+}
+
+function ConfirmSimilarForm({
+  merchantClean,
+  category,
+  sampleRaw,
+  groups,
+  checkedRaws,
+  setCheckedRaws,
+  savedTransaction,
+  onSaved,
+}: {
+  merchantClean: string;
+  category: string | null;
+  sampleRaw: string;
+  groups: SimilarGroup[];
+  checkedRaws: Set<string>;
+  setCheckedRaws: React.Dispatch<React.SetStateAction<Set<string>>>;
+  savedTransaction: Transaction | null;
+  onSaved: (updated: Transaction) => void;
+}) {
+  const closeAnimated = useBottomSheetClose();
+  const [saving, setSaving] = useState(false);
 
   function toggleRaw(raw: string) {
     setCheckedRaws((prev) => {
@@ -106,125 +241,73 @@ export function CategorySheet({
     });
   }
 
-  if (step === "confirm-similar") {
-    const selectedCount = groups.filter((g) => checkedRaws.has(g.merchantRaw)).reduce((s, g) => s + g.count, 0);
-    return (
-      <BottomSheet onClose={onClose}>
-          <p className="mb-1 text-[15px] font-medium" style={{ color: "var(--text)" }}>
-            Found {groups.reduce((s, g) => s + g.count, 0)} similar transaction{groups.length === 1 && groups[0].count === 1 ? "" : "s"}
-          </p>
-          <p className="mb-4 text-[13px]" style={{ color: "var(--text-secondary)" }}>
-            Uncheck any that aren&apos;t actually {merchantClean}. Checked ones will be relabeled now, and future
-            transactions like these will show up in Review pre-filled — one tap to confirm.
-          </p>
+  async function handleConfirmSimilar() {
+    setSaving(true);
+    const applyToIds = groups.filter((g) => checkedRaws.has(g.merchantRaw)).flatMap((g) => g.ids);
 
-          <div className="mb-5 overflow-hidden rounded-2xl" style={{ background: "var(--bg)" }}>
-            {groups.map((g, i) => (
-              <div key={g.merchantRaw}>
-                {i > 0 && <div className="ml-4 h-px" style={{ background: "var(--separator)" }} />}
-                <button
-                  onClick={() => toggleRaw(g.merchantRaw)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left"
-                >
-                  <div
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[11px] text-white"
-                    style={{ background: checkedRaws.has(g.merchantRaw) ? "var(--accent)" : "var(--pill-bg)" }}
-                  >
-                    {checkedRaws.has(g.merchantRaw) && "✓"}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px]" style={{ color: "var(--text)" }}>
-                      {g.merchantRaw}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-[13px]" style={{ color: "var(--text-secondary)" }}>
-                    {g.count}×
-                  </p>
-                </button>
-              </div>
-            ))}
-          </div>
+    await fetch("/api/merchant-rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sampleRaw,
+        merchantClean,
+        category,
+        applyToIds,
+      }),
+    });
 
-          <button
-            onClick={handleConfirmSimilar}
-            disabled={saving}
-            className="w-full rounded-2xl py-3.5 text-base font-medium text-white disabled:opacity-40"
-            style={{ background: "var(--accent)" }}
-          >
-            {saving ? "Applying…" : selectedCount > 0 ? `Apply to ${selectedCount} transaction${selectedCount === 1 ? "" : "s"}` : "Skip"}
-          </button>
-      </BottomSheet>
-    );
+    setSaving(false);
+    onSaved(savedTransaction!);
+    closeAnimated();
   }
 
+  const selectedCount = groups.filter((g) => checkedRaws.has(g.merchantRaw)).reduce((s, g) => s + g.count, 0);
+
   return (
-    <BottomSheet onClose={onClose}>
-        <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
-          Merchant
-        </p>
-        <input
-          value={merchantClean}
-          onChange={(e) => setMerchantClean(e.target.value)}
-          className="mb-3 w-full rounded-xl px-3.5 py-2.5 text-base outline-none ring-1 ring-black/5"
-          style={{ background: "var(--bg)", color: "var(--text)" }}
-        />
+    <>
+      <p className="mb-1 text-[15px] font-medium" style={{ color: "var(--text)" }}>
+        Found {groups.reduce((s, g) => s + g.count, 0)} similar transaction{groups.length === 1 && groups[0].count === 1 ? "" : "s"}
+      </p>
+      <p className="mb-4 text-[13px]" style={{ color: "var(--text-secondary)" }}>
+        Uncheck any that aren&apos;t actually {merchantClean}. Checked ones will be relabeled now, and future
+        transactions like these will show up in Review pre-filled — one tap to confirm.
+      </p>
 
-        <button
-          onClick={() => setApplyToSimilar((v) => !v)}
-          className="mb-5 flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left text-[13px]"
-          style={{ background: "var(--bg)", color: "var(--text-secondary)" }}
-        >
-          <div
-            className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-md text-[10px] text-white"
-            style={{ background: applyToSimilar ? "var(--accent)" : "var(--pill-bg)" }}
-          >
-            {applyToSimilar && "✓"}
-          </div>
-          Apply this name/category to similar transactions, and remember it for future ones
-        </button>
-
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
-          Category
-        </p>
-        <div className="mb-6 grid grid-cols-3 gap-2">
-          {CATEGORIES.map((c) => {
-            const selected = category === c.name;
-            return (
-              <button
-                key={c.name}
-                onClick={() => setCategory(c.name)}
-                className="flex flex-col items-center gap-1 rounded-2xl px-2 py-3 text-xs transition-transform active:scale-95"
-                style={{
-                  background: selected ? c.color : "var(--bg)",
-                  color: selected ? "#fff" : "var(--text)",
-                }}
+      <div className="mb-5 overflow-hidden rounded-2xl" style={{ background: "var(--bg)" }}>
+        {groups.map((g, i) => (
+          <div key={g.merchantRaw}>
+            {i > 0 && <div className="ml-4 h-px" style={{ background: "var(--separator)" }} />}
+            <button
+              onClick={() => toggleRaw(g.merchantRaw)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left"
+            >
+              <div
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[11px] text-white"
+                style={{ background: checkedRaws.has(g.merchantRaw) ? "var(--accent)" : "var(--pill-bg)" }}
               >
-                <span className="text-xl">{c.emoji}</span>
-                <span className="text-center leading-tight">{c.name}</span>
-              </button>
-            );
-          })}
-        </div>
+                {checkedRaws.has(g.merchantRaw) && "✓"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px]" style={{ color: "var(--text)" }}>
+                  {g.merchantRaw}
+                </p>
+              </div>
+              <p className="shrink-0 text-[13px]" style={{ color: "var(--text-secondary)" }}>
+                {g.count}×
+              </p>
+            </button>
+          </div>
+        ))}
+      </div>
 
-        <button
-          onClick={handleSave}
-          disabled={saving || !category}
-          className="w-full rounded-2xl py-3.5 text-base font-medium text-white disabled:opacity-40"
-          style={{ background: "var(--accent)" }}
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
-
-        {transaction.source === "Manual" && (
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="mt-3 w-full rounded-2xl py-3 text-[14px] font-medium disabled:opacity-40"
-            style={{ color: "var(--debit)" }}
-          >
-            {deleting ? "Deleting…" : "Delete this entry"}
-          </button>
-        )}
-    </BottomSheet>
+      <button
+        onClick={handleConfirmSimilar}
+        disabled={saving}
+        className="w-full rounded-2xl py-3.5 text-base font-medium text-white disabled:opacity-40"
+        style={{ background: "var(--accent)" }}
+      >
+        {saving ? "Applying…" : selectedCount > 0 ? `Apply to ${selectedCount} transaction${selectedCount === 1 ? "" : "s"}` : "Skip"}
+      </button>
+    </>
   );
 }
