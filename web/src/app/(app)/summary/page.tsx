@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { Skeleton } from "@/components/Skeleton";
 import { getCategory } from "@/lib/categories";
 import type { Transaction } from "@/lib/types";
 
@@ -92,9 +93,30 @@ export default function SummaryPage() {
       </div>
 
       {!summary && (
-        <p className="px-5 text-[15px]" style={{ color: "var(--text-secondary)" }}>
-          Loading…
-        </p>
+        <div className="flex flex-col gap-6 px-4">
+          <div className="grid grid-cols-2 gap-3">
+            {[0, 1].map((i) => (
+              <div key={i} className="flex flex-col gap-2 rounded-2xl p-4" style={{ background: "var(--card)" }}>
+                <Skeleton className="h-3 w-14" />
+                <Skeleton className="h-7 w-20" />
+              </div>
+            ))}
+          </div>
+          <div className="overflow-hidden rounded-2xl" style={{ background: "var(--card)" }}>
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i}>
+                {i > 0 && <div className="ml-4 h-px" style={{ background: "var(--separator)" }} />}
+                <div className="px-4 py-3">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <Skeleton className="h-3.5 w-28" />
+                    <Skeleton className="h-3.5 w-14" />
+                  </div>
+                  <Skeleton className="h-1.5 w-full rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {summary && (

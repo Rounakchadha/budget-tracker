@@ -3,6 +3,7 @@
 import { useTransactions } from "@/lib/use-transactions";
 import { TransactionList } from "@/components/TransactionList";
 import { PageHeader } from "@/components/PageHeader";
+import { SkeletonRows } from "@/components/Skeleton";
 
 export default function ReviewPage() {
   const { transactions, error, updateOne } = useTransactions("?needsReview=true");
@@ -20,9 +21,9 @@ export default function ReviewPage() {
         </p>
       )}
       {!error && pending === null && (
-        <p className="px-5 text-[15px]" style={{ color: "var(--text-secondary)" }}>
-          Loading…
-        </p>
+        <div className="px-4">
+          <SkeletonRows rows={4} />
+        </div>
       )}
       {pending && (
         <TransactionList transactions={pending} onUpdate={updateOne} emptyMessage="Nothing needs review 🎉" />

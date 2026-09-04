@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { SkeletonRows } from "@/components/Skeleton";
 import type { Bill } from "@/lib/types";
 
 function formatMoney(n: number) {
@@ -66,7 +67,7 @@ export default function BillsPage() {
 
   return (
     <div>
-      <PageHeader title="Bills" />
+      <PageHeader title="Bills" backHref="/" />
 
       <div className="px-4">
         {!formOpen ? (
@@ -126,11 +127,7 @@ export default function BillsPage() {
           </form>
         )}
 
-        {bills === null && (
-          <p className="text-[15px]" style={{ color: "var(--text-secondary)" }}>
-            Loading…
-          </p>
-        )}
+        {bills === null && <SkeletonRows rows={3} circle={false} />}
 
         {bills && (
           <div className="flex flex-col gap-6">

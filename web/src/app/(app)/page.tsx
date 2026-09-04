@@ -7,6 +7,7 @@ import { TransactionList } from "@/components/TransactionList";
 import { PageHeader } from "@/components/PageHeader";
 import { StatsGrid } from "@/components/StatsGrid";
 import { AddTransactionSheet } from "@/components/AddTransactionSheet";
+import { SkeletonRows } from "@/components/Skeleton";
 
 export default function ActivityPage() {
   const { transactions, error, updateOne, addOne, removeOne } = useTransactions("");
@@ -17,7 +18,7 @@ export default function ActivityPage() {
       <PageHeader title="Activity" />
       <StatsGrid />
 
-      <div className="px-4 pb-2">
+      <div className="px-4 pb-2 pt-3">
         <button
           onClick={() => setAdding(true)}
           className="flex w-full items-center justify-center gap-1.5 rounded-2xl py-3 text-[15px] font-medium text-white active:opacity-80"
@@ -33,9 +34,9 @@ export default function ActivityPage() {
         </p>
       )}
       {!error && transactions === null && (
-        <p className="px-5 text-[15px]" style={{ color: "var(--text-secondary)" }}>
-          Loading…
-        </p>
+        <div className="px-4">
+          <SkeletonRows rows={6} />
+        </div>
       )}
       {transactions && (
         <TransactionList

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { Skeleton, SkeletonRows } from "@/components/Skeleton";
 import type { Split } from "@/lib/types";
 
 function formatMoney(n: number) {
@@ -120,10 +121,15 @@ export default function SplitsPage() {
 
   return (
     <div>
-      <PageHeader title="Splits" />
+      <PageHeader title="Splits" backHref="/" />
 
       <div className="px-4">
-        {splits && (
+        {splits === null ? (
+          <div className="mb-4 flex flex-col items-center gap-2 rounded-2xl p-5" style={{ background: "var(--card)" }}>
+            <Skeleton className="h-3.5 w-24" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+        ) : (
           <div className="mb-4 rounded-2xl p-5 text-center" style={{ background: "var(--card)" }}>
             <p className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
               {overallNet >= 0 ? "You're Owed" : "You Owe"}
@@ -219,11 +225,7 @@ export default function SplitsPage() {
           </form>
         )}
 
-        {splits === null && (
-          <p className="text-[15px]" style={{ color: "var(--text-secondary)" }}>
-            Loading…
-          </p>
-        )}
+        {splits === null && <SkeletonRows rows={3} circle={false} />}
 
         {splits && (
           <div className="flex flex-col gap-6">
