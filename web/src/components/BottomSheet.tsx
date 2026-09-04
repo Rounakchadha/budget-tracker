@@ -26,6 +26,7 @@ export function BottomSheet({
 }) {
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const dragYRef = useRef(0);
   const startYRef = useRef(0);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -48,38 +49,60 @@ export function BottomSheet({
     };
   }, []);
 
-  function handleTouchStart(e: React.TouchEvent) {
-    startYRef.current = e.touches[0].clientY;
-  }
+  // Attached as a native (non-passive) listener so touchmove can call
+  // preventDefault — that's the only way to stop iOS's own elastic
+  // "rubber-band" bounce from also firing while we're driving the drag
+  // ourselves, which otherwise looks like the content sliding separately
+  // from the box around it.
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
 
-  function handleTouchMove(e: React.TouchEvent) {
-    const container = contentRef.current;
-    if (!container) return;
-
-    const delta = e.touches[0].clientY - startYRef.current;
-
-    if (delta <= 0 || container.scrollTop > 0) {
-      // Moving up, or there's still content above to scroll to — let the
-      // sheet's own scroll handle it instead of dragging.
-      if (dragY !== 0) setDragY(0);
-      if (isDragging) setIsDragging(false);
-      return;
+    function onTouchStart(e: TouchEvent) {
+      startYRef.current = e.touches[0].clientY;
     }
 
-    if (delta < DRAG_START_THRESHOLD_PX) return;
+    function onTouchMove(e: TouchEvent) {
+      const delta = e.touches[0].clientY - startYRef.current;
 
-    setIsDragging(true);
-    setDragY(delta - DRAG_START_THRESHOLD_PX);
-  }
+      if (delta <= 0 || el!.scrollTop > 0) {
+        if (dragYRef.current !== 0) {
+          dragYRef.current = 0;
+          setDragY(0);
+        }
+        setIsDragging(false);
+        return;
+      }
 
-  function handleTouchEnd() {
-    setIsDragging(false);
-    if (dragY > DISMISS_THRESHOLD_PX) {
-      onClose();
-    } else {
-      setDragY(0);
+      if (delta < DRAG_START_THRESHOLD_PX) return;
+
+      e.preventDefault();
+      const next = delta - DRAG_START_THRESHOLD_PX;
+      dragYRef.current = next;
+      setIsDragging(true);
+      setDragY(next);
     }
-  }
+
+    function onTouchEnd() {
+      setIsDragging(false);
+      if (dragYRef.current > DISMISS_THRESHOLD_PX) {
+        onClose();
+      } else {
+        dragYRef.current = 0;
+        setDragY(0);
+      }
+    }
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [onClose]);
 
   return (
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40" onClick={onClose}>
@@ -88,13 +111,11 @@ export function BottomSheet({
         className={`w-full max-w-md ${maxHeightClassName} overflow-y-auto rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]`}
         style={{
           background: "var(--card)",
+          overscrollBehavior: "contain",
           transform: dragY ? `translateY(${dragY}px)` : undefined,
           transition: isDragging ? "none" : "transform 0.2s ease-out",
         }}
         onClick={(e) => e.stopPropagation()}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         <div className="mx-auto mb-4 h-1 w-9 rounded-full" style={{ background: "var(--separator)" }} />
         {children}
