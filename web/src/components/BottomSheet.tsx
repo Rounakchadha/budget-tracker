@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const DISMISS_THRESHOLD_PX = 80;
 // Below this, a touch is treated as a tap/scroll, not a drag — avoids
 // hijacking button taps or internal scrolling on tiny finger jitter.
 const DRAG_START_THRESHOLD_PX = 10;
+// How long the sheet takes to finish sliding off-screen once a swipe (or a
+// backdrop tap) has committed to closing it, before actually unmounting.
+const CLOSE_ANIMATION_MS = 280;
 
 // Shared chrome for every bottom sheet in the app: dims + locks the
 // background (no scrolling behind it — `overflow: hidden` on body alone
@@ -26,9 +29,16 @@ export function BottomSheet({
 }) {
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const dragYRef = useRef(0);
   const startYRef = useRef(0);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  const closeWithAnimation = useCallback(() => {
+    setIsDragging(false);
+    setIsClosing(true);
+    setTimeout(onClose, CLOSE_ANIMATION_MS);
+  }, [onClose]);
 
   useEffect(() => {
     const scrollY = window.scrollY;
@@ -84,10 +94,10 @@ export function BottomSheet({
     }
 
     function onTouchEnd() {
-      setIsDragging(false);
       if (dragYRef.current > DISMISS_THRESHOLD_PX) {
-        onClose();
+        closeWithAnimation();
       } else {
+        setIsDragging(false);
         dragYRef.current = 0;
         setDragY(0);
       }
@@ -102,18 +112,22 @@ export function BottomSheet({
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
     };
-  }, [onClose]);
+  }, [closeWithAnimation]);
 
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40" onClick={closeWithAnimation}>
       <div
         ref={contentRef}
         className={`w-full max-w-md ${maxHeightClassName} overflow-y-auto rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]`}
         style={{
           background: "var(--card)",
           overscrollBehavior: "contain",
-          transform: dragY ? `translateY(${dragY}px)` : undefined,
-          transition: isDragging ? "none" : "transform 0.2s ease-out",
+          transform: isClosing ? "translateY(100%)" : dragY ? `translateY(${dragY}px)` : undefined,
+          transition: isClosing
+            ? `transform ${CLOSE_ANIMATION_MS}ms ease-in`
+            : isDragging
+              ? "none"
+              : "transform 0.2s ease-out",
         }}
         onClick={(e) => e.stopPropagation()}
       >
