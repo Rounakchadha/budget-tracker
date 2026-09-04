@@ -4,7 +4,15 @@ import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith("/login") || pathname.startsWith("/api/login")) {
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api/login") ||
+    pathname.startsWith("/api/gmail/webhook") ||
+    pathname.startsWith("/api/gmail/watch")
+  ) {
+    // These two authenticate themselves (Pub/Sub OIDC token verification,
+    // and a cron secret respectively) — a session cookie will never be
+    // present since Google/Vercel Cron call them directly, not a browser.
     return NextResponse.next();
   }
 
