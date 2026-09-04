@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/session";
+import { createSessionToken, SESSION_COOKIE_NAME, timingSafeEqualStr } from "@/lib/session";
 
 export async function POST(request: Request) {
   const { password } = await request.json();
 
-  if (password !== process.env.APP_PASSWORD) {
+  if (typeof password !== "string" || !timingSafeEqualStr(password, process.env.APP_PASSWORD!)) {
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
   }
 

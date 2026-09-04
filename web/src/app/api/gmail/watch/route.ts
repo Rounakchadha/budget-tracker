@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGmailClient } from "@/lib/gmail-webhook/client";
 import { supabaseServer } from "@/lib/supabase-server";
+import { timingSafeEqualStr } from "@/lib/session";
 
 // (Re)subscribes to Gmail push notifications. Gmail watches expire after 7
 // days, so this needs to run on a schedule (Vercel Cron, see vercel.json) —
@@ -11,7 +12,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 // for a manual curl trigger.
 async function handleWatch(request: NextRequest) {
   const authHeader = request.headers.get("authorization") ?? "";
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!timingSafeEqualStr(authHeader, `Bearer ${process.env.CRON_SECRET}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

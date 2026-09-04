@@ -5,6 +5,22 @@
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 export const SESSION_COOKIE_NAME = "budget_tracker_session";
 
+// Node's crypto.timingSafeEqual isn't available in the Edge runtime (this
+// file is imported from middleware), so this compares in constant time
+// relative to the longer input using plain JS instead — used anywhere a
+// secret (password, session signature, cron token) is checked against
+// user-supplied input.
+export function timingSafeEqualStr(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  const len = Math.max(aBytes.length, bBytes.length);
+  let diff = aBytes.length ^ bBytes.length;
+  for (let i = 0; i < len; i++) {
+    diff |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 async function hmac(secret: string, message: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -32,5 +48,5 @@ export async function verifySessionToken(token: string | undefined, secret: stri
   if (!Number.isFinite(expiry) || Date.now() > expiry) return false;
 
   const expectedSignature = await hmac(secret, expiryStr);
-  return signature === expectedSignature;
+  return timingSafeEqualStr(signature, expectedSignature);
 }
