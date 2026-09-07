@@ -9,7 +9,7 @@ import { withRetry } from "../lib/retry.js";
 import type { ParsedTransaction, RawEmail } from "../parsers/types.js";
 
 const SEARCH_QUERY = "from:alerts@axis.bank.in";
-const MAX_RESULTS = 25;
+const MAX_RESULTS = Number(process.env.FETCH_MAX_RESULTS ?? 25);
 const DRY_RUN = process.argv.includes("--dry-run");
 
 function snippet(bodyText: string, maxLen = 500): string {
