@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, Trash2, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton, SkeletonRows } from "@/components/Skeleton";
+import { EditSplitSheet } from "@/components/EditSplitSheet";
 import type { Split } from "@/lib/types";
 
 function formatMoney(n: number) {
@@ -41,6 +42,8 @@ export default function SplitsPage() {
   const [splits, setSplits] = useState<Split[] | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [editingSplit, setEditingSplit] = useState<Split | null>(null);
+  const [netBalance, setNetBalance] = useState<number | null>(null);
 
   const [personName, setPersonName] = useState("");
   const [amount, setAmount] = useState("");
@@ -55,6 +58,11 @@ export default function SplitsPage() {
   }
 
   useEffect(refresh, []);
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then((data) => setNetBalance(data.netBalance));
+  }, []);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -139,6 +147,17 @@ export default function SplitsPage() {
               style={{ color: overallNet >= 0 ? "var(--credit)" : "var(--debit)" }}
             >
               {formatMoney(Math.abs(overallNet))}
+            </p>
+          </div>
+        )}
+
+        {splits !== null && netBalance !== null && (
+          <div className="mb-5 flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: "var(--card)" }}>
+            <p className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
+              Balance if all splits settled
+            </p>
+            <p className="text-[15px] font-semibold tabular-nums" style={{ color: "var(--text)" }}>
+              {formatMoney(netBalance + overallNet)}
             </p>
           </div>
         )}
@@ -287,7 +306,10 @@ export default function SplitsPage() {
                                     }}
                                     aria-label="Toggle settled"
                                   />
-                                  <div className="min-w-0 flex-1">
+                                  <button
+                                    onClick={() => setEditingSplit(e)}
+                                    className="min-w-0 flex-1 text-left"
+                                  >
                                     <p
                                       className="truncate text-[14px]"
                                       style={{ color: e.settled ? "var(--text-secondary)" : "var(--text)" }}
@@ -297,7 +319,7 @@ export default function SplitsPage() {
                                     <p className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
                                       {formatDate(e.date)}
                                     </p>
-                                  </div>
+                                  </button>
                                   <p
                                     className="shrink-0 text-[14px] tabular-nums"
                                     style={{ color: e.settled ? "var(--text-secondary)" : "var(--text)" }}
@@ -347,6 +369,16 @@ export default function SplitsPage() {
           </div>
         )}
       </div>
+
+      {editingSplit && (
+        <EditSplitSheet
+          split={editingSplit}
+          onClose={() => setEditingSplit(null)}
+          onSaved={(updated) => {
+            setSplits((prev) => prev?.map((s) => (s.id === updated.id ? updated : s)) ?? prev);
+          }}
+        />
+      )}
     </div>
   );
 }
