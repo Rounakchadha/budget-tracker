@@ -51,6 +51,23 @@ export async function POST(request: NextRequest) {
     historyId: string | number;
   };
 
+  // Pub/Sub only stops retrying a message once it gets a 2xx back — a raw
+  // 500 (e.g. from hitting Gmail's per-user rate limit, or any other
+  // transient failure) makes it retry almost immediately, which can hit the
+  // same rate limit again and spiral into a retry storm. So everything
+  // below is caught: on failure we log it and still ack with 200, leaving
+  // gmail_sync_state untouched so the next successful invocation resumes
+  // from the same cursor — nothing is lost, and the local poller backstop
+  // covers anything in the meantime.
+  try {
+    return await processNotification(decoded);
+  } catch (err) {
+    console.error("gmail webhook processing failed:", err);
+    return NextResponse.json({ ok: false, error: "processing failed, will retry from same cursor" });
+  }
+}
+
+async function processNotification(decoded: { emailAddress: string; historyId: string | number }) {
   const { data: state } = await supabaseServer
     .from("gmail_sync_state")
     .select("history_id")
