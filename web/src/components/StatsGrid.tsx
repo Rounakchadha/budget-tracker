@@ -82,9 +82,11 @@ export function StatsGrid() {
   }, [refresh, period]);
 
   useEffect(() => {
+    // New transactions arrive near-instantly via the Gmail push webhook —
+    // this poll is just a fallback, not the primary way stats stay fresh.
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") refresh(period);
-    }, 20_000);
+    }, 90_000);
     return () => clearInterval(interval);
   }, [refresh, period]);
 

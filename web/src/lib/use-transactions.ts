@@ -3,7 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import type { Transaction } from "./types";
 
-const POLL_INTERVAL_MS = 20_000;
+// New transactions already arrive near-instantly via the Gmail push webhook
+// (see /api/gmail/webhook) — this poll is just a fallback/backstop, and a
+// tab coming back to the foreground already triggers an immediate refresh
+// below. No need to hammer the server every 20s.
+const POLL_INTERVAL_MS = 90_000;
 
 export function useTransactions(query: string) {
   const [transactions, setTransactions] = useState<Transaction[] | null>(null);
