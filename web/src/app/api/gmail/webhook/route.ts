@@ -3,16 +3,24 @@ import { OAuth2Client } from "google-auth-library";
 import { getGmailClient } from "@/lib/gmail-webhook/client";
 import { toRawEmail } from "@/lib/gmail-webhook/email";
 import { isKnownNonTransactional, parseAxisEmail } from "@/lib/gmail-webhook/axis-parser";
+import { extractWithAiFallback } from "@/lib/gmail-webhook/ai-fallback";
 import { supabaseServer } from "@/lib/supabase-server";
 
 // Receives Google Cloud Pub/Sub push notifications for new mail (set up via
 // gmail.users.watch — see /api/gmail/watch). Google pushes within seconds of
 // a new Axis alert landing; this diffs the mailbox history since our last
-// known position, parses anything it recognizes with the fast regex parser,
-// and inserts it. Anything it can't parse is left for the local poller
-// (src/scripts/fetch-transactions.ts), which has the AI fallback and runs
-// every few minutes as a backstop — inserts are deduped by
-// email_message_id, so there's no double-insert risk either way.
+// known position, parses each with the fast regex parser first, falling
+// back to an AI extraction (Groq, or Anthropic if Groq isn't configured)
+// for anything it doesn't recognize — same as the local poller
+// (src/scripts/fetch-transactions.ts), so ingestion no longer depends on
+// that machine being on. That poller still runs as an extra backstop
+// (e.g. if Pub/Sub itself ever drops a notification); inserts are deduped
+// by email_message_id, so there's no double-insert risk either way.
+
+// Default function timeout is too short once AI fallback calls are in the
+// mix (each takes a couple of seconds, and a notification can carry several
+// new messages).
+export const maxDuration = 60;
 
 const oidcClient = new OAuth2Client();
 
@@ -131,8 +139,18 @@ async function processNotification(decoded: { emailAddress: string; historyId: s
       if (!email.from.toLowerCase().includes("alerts@axis.bank.in")) continue;
       if (isKnownNonTransactional(email.subject)) continue;
 
-      const parsed = parseAxisEmail(email);
-      if (!parsed) continue; // left for the AI-fallback backstop poller
+      let parsed = parseAxisEmail(email);
+      if (!parsed) {
+        try {
+          parsed = await extractWithAiFallback(email);
+        } catch (err) {
+          // AI extraction failing (rate limit, bad response, etc.) shouldn't
+          // sink the rest of the batch — skip this one, the local poller
+          // backstop will retry it with its own AI fallback later.
+          console.error(`AI fallback failed for ${email.messageId}:`, err);
+        }
+      }
+      if (!parsed) continue; // genuinely unparseable — left for the backstop poller
 
       const { error } = await supabaseServer.from("transactions").insert({
         email_message_id: email.messageId,

@@ -1,0 +1,18 @@
+name: Gmail ingestion backstop poll
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub only guarantees "best effort" timing for
+    # scheduled workflows (can lag under load), which is fine here — this
+    # is a backstop for the instant Gmail push webhook, not the primary path.
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit the cloud poll endpoint
+        run: |
+          curl -sf -X POST "https://web-nine-pi-75.vercel.app/api/gmail/poll" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

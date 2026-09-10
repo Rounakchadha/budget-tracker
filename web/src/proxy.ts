@@ -8,11 +8,16 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/api/login") ||
     pathname.startsWith("/api/gmail/webhook") ||
-    pathname.startsWith("/api/gmail/watch")
+    pathname.startsWith("/api/gmail/watch") ||
+    pathname.startsWith("/api/gmail/poll") ||
+    pathname.startsWith("/privacy")
   ) {
-    // These two authenticate themselves (Pub/Sub OIDC token verification,
-    // and a cron secret respectively) — a session cookie will never be
-    // present since Google/Vercel Cron call them directly, not a browser.
+    // The gmail/* routes authenticate themselves (Pub/Sub OIDC token
+    // verification, or a cron secret) — a session cookie will never be
+    // present since Google/Vercel Cron/GitHub Actions call them directly,
+    // not a browser. /privacy has to be publicly viewable — it's the
+    // privacy policy link on the Google OAuth consent screen, so Google
+    // (and anyone else) needs to reach it without logging in.
     return NextResponse.next();
   }
 
