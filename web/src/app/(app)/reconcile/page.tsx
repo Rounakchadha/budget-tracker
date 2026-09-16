@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import Papa from "papaparse";
 import { Upload } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import type { StatementRow } from "@/lib/statement";
+import { looksLikeStatementHeaderRow, type StatementRow } from "@/lib/statement";
 import type { Transaction } from "@/lib/types";
 
 interface ReconcileResult {
@@ -28,12 +28,21 @@ export default function ReconcilePage() {
   const [error, setError] = useState<ReconcileError | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
     setLoading(true);
     setResult(null);
     setError(null);
 
-    Papa.parse<Record<string, string>>(file, {
+    // Axis exports lead with several metadata lines (account holder, IFSC,
+    // statement period, etc.) before the real column header row — find that
+    // row and drop everything above it, or Papa.parse would treat the first
+    // metadata line as the header.
+    const text = await file.text();
+    const lines = text.split(/\r?\n/);
+    const headerIndex = lines.findIndex((line) => looksLikeStatementHeaderRow(line.split(",")));
+    const csvText = headerIndex >= 0 ? lines.slice(headerIndex).join("\n") : text;
+
+    Papa.parse<Record<string, string>>(csvText, {
       header: true,
       skipEmptyLines: true,
       complete: async (parsed) => {

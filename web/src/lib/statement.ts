@@ -10,11 +10,20 @@ export interface StatementRow {
 // raw headers instead of guessing, same principle as the email parsers.
 const DATE_HEADERS = ["date", "tran date", "transaction date", "value date", "txn date"];
 const DESC_HEADERS = ["particulars", "narration", "description", "transaction remarks", "remarks"];
-const DEBIT_HEADERS = ["withdrawal amt.", "withdrawal amt", "debit", "withdrawal amount", "dr amount"];
-const CREDIT_HEADERS = ["deposit amt.", "deposit amt", "credit", "deposit amount", "cr amount"];
+const DEBIT_HEADERS = ["withdrawal amt.", "withdrawal amt", "debit", "withdrawal amount", "dr amount", "dr"];
+const CREDIT_HEADERS = ["deposit amt.", "deposit amt", "credit", "deposit amount", "cr amount", "cr"];
 
 function normalizeHeader(h: string): string {
   return h.trim().toLowerCase();
+}
+
+// Axis netbanking CSV exports lead with several metadata lines (account
+// holder name, IFSC, statement period, etc.) before the actual column
+// header row — this finds that row so the caller can skip everything
+// above it before handing the rest to a CSV parser.
+export function looksLikeStatementHeaderRow(cells: string[]): boolean {
+  const normalized = cells.map(normalizeHeader);
+  return DATE_HEADERS.some((h) => normalized.includes(h));
 }
 
 function findHeader(headers: string[], candidates: string[]): string | null {
