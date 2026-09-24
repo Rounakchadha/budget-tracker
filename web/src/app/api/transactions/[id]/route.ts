@@ -9,6 +9,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if ("merchant_clean" in body) update.merchant_clean = body.merchant_clean;
   if ("category" in body) update.category = body.category;
   if ("needs_review" in body) update.needs_review = body.needs_review;
+  if ("is_transfer" in body) update.is_transfer = body.is_transfer;
+  if ("transfer_note" in body) update.transfer_note = body.transfer_note;
+  if ("attributed_month" in body) update.attributed_month = body.attributed_month;
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

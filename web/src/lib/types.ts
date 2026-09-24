@@ -15,6 +15,7 @@ export interface Split {
   date: string;
   settled: boolean;
   created_at: string;
+  linked_transaction_id: string | null;
 }
 
 export interface Bill {
@@ -41,4 +42,7 @@ export interface Transaction {
   needs_review: boolean;
   raw_email_snippet: string | null;
   created_at: string;
+  is_transfer: boolean;
+  transfer_note: string | null;
+  attributed_month: string | null;
 }

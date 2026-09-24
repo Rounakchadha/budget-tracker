@@ -14,7 +14,17 @@ create table transactions (
   parsed_confidence text not null check (parsed_confidence in ('high', 'low')),
   needs_review boolean not null default true,
   raw_email_snippet text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Money passing through you, not real income/expense (split-bill repayments,
+  -- paying/getting paid back for someone else, refunds). Excluded from
+  -- Total Received/Total Spent, still counted in Net Balance since it did
+  -- move money. transfer_note is a free-text label, e.g. "Vihaan".
+  is_transfer boolean not null default false,
+  transfer_note text,
+  -- Overrides which month (format 'YYYY-MM') this transaction counts toward
+  -- in Summary/dashboard totals — for salary etc. landing near month-end
+  -- but conceptually belonging to the next month. Null = use transaction_date.
+  attributed_month text
 );
 
 create index on transactions (transaction_date desc);
@@ -70,7 +80,10 @@ create table splits (
   description text,
   date date not null default current_date,
   settled boolean not null default false,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- When settling links to the actual bank transaction that paid it back,
+  -- so the split and the transaction stop being two disconnected ledgers.
+  linked_transaction_id uuid references transactions(id) on delete set null
 );
 
 create index on splits (person_name, settled);

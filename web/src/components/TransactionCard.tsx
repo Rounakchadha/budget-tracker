@@ -45,6 +45,11 @@ export function TransactionCard({
           </p>
           <p className="truncate text-[13px]" style={{ color: "var(--text-secondary)" }}>
             {transaction.source} · {formatTime(transaction.transaction_date)}
+            {transaction.is_transfer && (
+              <span className="ml-1.5 font-medium" style={{ color: "var(--accent)" }}>
+                · Transfer{transaction.transfer_note ? ` (${transaction.transfer_note})` : ""}
+              </span>
+            )}
             {transaction.needs_review && (
               <span className="ml-1.5 font-medium" style={{ color: "var(--debit)" }}>
                 · Needs review

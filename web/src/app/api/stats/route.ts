@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { currentMonth, effectiveMonth } from "@/lib/month";
 
 export async function GET(request: NextRequest) {
   const period = request.nextUrl.searchParams.get("period") === "month" ? "month" : "all";
@@ -10,7 +11,9 @@ export async function GET(request: NextRequest) {
     { data: balanceRow, error: balanceError },
     { data: splits, error: splitsError },
   ] = await Promise.all([
-    supabaseServer.from("transactions").select("amount, direction, transaction_date"),
+    supabaseServer
+      .from("transactions")
+      .select("amount, direction, transaction_date, is_transfer, attributed_month"),
     supabaseServer.from("bills").select("amount, paid, due_date").eq("paid", false),
     supabaseServer.from("account_balance").select("*").eq("id", "singleton").maybeSingle(),
     supabaseServer.from("splits").select("amount, direction, settled").eq("settled", false),
@@ -24,25 +27,36 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
   const monthEnd = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
-  const inPeriod = (dateIso: string) => period === "all" || new Date(dateIso).getTime() >= monthStart;
+  const thisMonth = currentMonth();
+  // Reporting totals (Received/Spent/Transfers) use attributed_month when
+  // set, so salary etc. can be nudged into the "right" month for reporting.
+  const inReportingPeriod = (t: { transaction_date: string; attributed_month: string | null }) =>
+    period === "all" || effectiveMonth(t) === thisMonth;
   const dueInPeriod = (dueDate: string) => {
     if (period === "all") return true;
-    // due_date is a plain date (no time) — parse as UTC midnight to match monthStart/monthEnd.
     const t = new Date(`${dueDate}T00:00:00Z`).getTime();
     return t >= monthStart && t < monthEnd;
   };
 
   let totalReceived = 0;
   let totalSpent = 0;
+  let totalTransfers = 0;
+  let reportingNet = 0; // full credit-debit sum for the reporting period, transfers included — this IS Net Balance when unanchored
   for (const t of transactions ?? []) {
-    if (!inPeriod(t.transaction_date)) continue;
+    if (!inReportingPeriod(t)) continue;
+    reportingNet += t.direction === "credit" ? t.amount : -t.amount;
+    if (t.is_transfer) {
+      totalTransfers += t.amount;
+      continue;
+    }
     if (t.direction === "credit") totalReceived += t.amount;
     else totalSpent += t.amount;
   }
 
-  // With an anchor set, Net Balance = anchor + everything since — not the
-  // all-time sum, since we don't know the balance before ingestion started.
-  let netBalance = totalReceived - totalSpent;
+  // Net Balance always reflects real money movement (including transfers —
+  // a split repayment genuinely changes your balance), anchored to the real
+  // transaction_date, never the reporting-only attributed_month.
+  let netBalance = reportingNet;
   if (balanceRow) {
     const asOf = new Date(balanceRow.as_of).getTime();
     let sinceAnchor = 0;
@@ -66,6 +80,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     totalReceived: round2(totalReceived),
     totalSpent: round2(totalSpent),
+    totalTransfers: round2(totalTransfers),
     netBalance: round2(netBalance),
     balanceAnchored: !!balanceRow,
     balanceAsOf: balanceRow?.as_of ?? null,

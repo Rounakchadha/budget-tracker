@@ -5,6 +5,7 @@ import { Plus, Trash2, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton, SkeletonRows } from "@/components/Skeleton";
 import { EditSplitSheet } from "@/components/EditSplitSheet";
+import { LinkTransactionSheet } from "@/components/LinkTransactionSheet";
 import type { Split } from "@/lib/types";
 
 function formatMoney(n: number) {
@@ -43,6 +44,7 @@ export default function SplitsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editingSplit, setEditingSplit] = useState<Split | null>(null);
+  const [settlingSplit, setSettlingSplit] = useState<Split | null>(null);
   const [netBalance, setNetBalance] = useState<number | null>(null);
 
   const [personName, setPersonName] = useState("");
@@ -84,11 +86,17 @@ export default function SplitsPage() {
   }
 
   async function toggleSettled(split: Split) {
-    setSplits((prev) => prev?.map((s) => (s.id === split.id ? { ...s, settled: !s.settled } : s)) ?? prev);
+    if (!split.settled) {
+      // Marking as settled — offer to link the real transaction that paid
+      // it back, instead of silently flipping a flag.
+      setSettlingSplit(split);
+      return;
+    }
+    setSplits((prev) => prev?.map((s) => (s.id === split.id ? { ...s, settled: false } : s)) ?? prev);
     await fetch(`/api/splits/${split.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ settled: !split.settled }),
+      body: JSON.stringify({ settled: false }),
     });
   }
 
@@ -318,6 +326,9 @@ export default function SplitsPage() {
                                     </p>
                                     <p className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
                                       {formatDate(e.date)}
+                                      {e.linked_transaction_id && (
+                                        <span style={{ color: "var(--accent)" }}> · linked</span>
+                                      )}
                                     </p>
                                   </button>
                                   <p
@@ -376,6 +387,17 @@ export default function SplitsPage() {
           onClose={() => setEditingSplit(null)}
           onSaved={(updated) => {
             setSplits((prev) => prev?.map((s) => (s.id === updated.id ? updated : s)) ?? prev);
+          }}
+        />
+      )}
+
+      {settlingSplit && (
+        <LinkTransactionSheet
+          split={settlingSplit}
+          onClose={() => setSettlingSplit(null)}
+          onSettled={(updated) => {
+            setSplits((prev) => prev?.map((s) => (s.id === updated.id ? updated : s)) ?? prev);
+            setSettlingSplit(null);
           }}
         />
       )}

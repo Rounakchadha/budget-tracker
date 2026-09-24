@@ -18,6 +18,7 @@ interface Summary {
   month: string;
   totalDebit: number;
   totalCredit: number;
+  totalTransfers: number;
   net: number;
   needsReviewCount: number;
   transactionCount: number;
@@ -139,6 +140,17 @@ export default function SummaryPage() {
               </p>
             </div>
           </div>
+
+          {summary.totalTransfers > 0 && (
+            <div className="rounded-2xl p-4" style={{ background: "var(--card)" }}>
+              <p className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
+                Transfers (not counted in Spent/Received)
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: "var(--accent)" }}>
+                {formatMoney(summary.totalTransfers)}
+              </p>
+            </div>
+          )}
 
           {summary.needsReviewCount > 0 && (
             <div
