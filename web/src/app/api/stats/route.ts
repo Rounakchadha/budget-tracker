@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
   ] = await Promise.all([
     supabaseServer
       .from("transactions")
-      .select("amount, direction, transaction_date, is_transfer, attributed_month"),
+      .select("amount, direction, transaction_date, is_transfer, attributed_month")
+      .eq("archived", false),
     supabaseServer.from("bills").select("amount, paid, due_date").eq("paid", false),
     supabaseServer.from("account_balance").select("*").eq("id", "singleton").maybeSingle(),
     supabaseServer.from("splits").select("amount, direction, settled").eq("settled", false),

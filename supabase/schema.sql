@@ -24,7 +24,10 @@ create table transactions (
   -- Overrides which month (format 'YYYY-MM') this transaction counts toward
   -- in Summary/dashboard totals — for salary etc. landing near month-end
   -- but conceptually belonging to the next month. Null = use transaction_date.
-  attributed_month text
+  attributed_month text,
+  -- Hidden everywhere (Activity, Review, Summary, dashboard totals) without
+  -- being deleted — the record and its history stay intact, just invisible.
+  archived boolean not null default false
 );
 
 create index on transactions (transaction_date desc);

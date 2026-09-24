@@ -27,6 +27,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabaseServer
     .from("transactions")
     .select("*")
+    .eq("archived", false)
     .gte("transaction_date", queryStart.toISOString())
     .lt("transaction_date", queryEnd.toISOString());
 

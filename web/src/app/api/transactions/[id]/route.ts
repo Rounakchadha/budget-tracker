@@ -12,6 +12,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if ("is_transfer" in body) update.is_transfer = body.is_transfer;
   if ("transfer_note" in body) update.transfer_note = body.transfer_note;
   if ("attributed_month" in body) update.attributed_month = body.attributed_month;
+  if ("archived" in body) update.archived = body.archived;
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

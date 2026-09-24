@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   const needsReview = searchParams.get("needsReview");
   const month = searchParams.get("month"); // "YYYY-MM"
   const limit = Number(searchParams.get("limit") ?? "200");
+  const includeArchived = searchParams.get("includeArchived") === "true";
 
   try {
     await applyPendingMerchantRules();
@@ -20,6 +21,10 @@ export async function GET(request: Request) {
     .select("*")
     .order("transaction_date", { ascending: false })
     .limit(limit);
+
+  if (!includeArchived) {
+    query = query.eq("archived", false);
+  }
 
   if (needsReview === "true") {
     query = query.eq("needs_review", true);

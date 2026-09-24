@@ -45,4 +45,5 @@ export interface Transaction {
   is_transfer: boolean;
   transfer_note: string | null;
   attributed_month: string | null;
+  archived: boolean;
 }
